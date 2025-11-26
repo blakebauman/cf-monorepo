@@ -1,0 +1,340 @@
+---
+description: Neon Postgres patterns for Cloudflare Workers
+globs: ["packages/db/**/*.ts", "apps/**/*.ts"]
+---
+
+# Neon Postgres Guidelines
+
+[Neon](https://neon.tech/) is a serverless PostgreSQL database with unique features like branching, autoscaling, and scale-to-zero.
+
+## Connection Methods
+
+### Via Hyperdrive (Recommended for Workers)
+
+Hyperdrive provides connection pooling and reduced latency. The implementation automatically uses Hyperdrive when available:
+
+```typescript
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import * as schema from "./schema";
+
+export function createDb(env: Env) {
+  // Automatically prefers Hyperdrive if available, falls back to DATABASE_URL
+  const connectionString = env.HYPERDRIVE?.connectionString || env.DATABASE_URL || "";
+  
+  if (!connectionString) {
+    throw new Error("DATABASE_URL or HYPERDRIVE binding is required");
+  }
+  
+  const sql = neon(connectionString);
+  return drizzle({ client: sql, schema });
+}
+```
+
+Note: The actual implementation uses `@neondatabase/serverless` with `drizzle-orm/neon-http`, not `postgres-js`. This works seamlessly with Hyperdrive connection strings.
+
+Configure in `wrangler.jsonc`:
+
+```jsonc
+{
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "your-hyperdrive-id"
+    }
+  ]
+}
+```
+
+### Via Neon Serverless Driver
+
+For direct connections without Hyperdrive:
+
+```typescript
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import * as schema from "./schema";
+
+export function createDb(env: Env) {
+  const connectionString = env.HYPERDRIVE?.connectionString || env.DATABASE_URL || "";
+  
+  if (!connectionString) {
+    throw new Error("DATABASE_URL or HYPERDRIVE binding is required");
+  }
+  
+  const sql = neon(connectionString);
+  return drizzle({ client: sql, schema });
+}
+```
+
+Note: The actual implementation supports both Hyperdrive and direct DATABASE_URL, preferring Hyperdrive when available.
+
+### Connection Pooling Considerations
+
+When using Hyperdrive:
+- **Don't use Neon's built-in pooler** - Hyperdrive handles pooling
+- **Max 5 connections per Worker** - Workers have a 6 concurrent connection limit
+- **Transaction mode** - Hyperdrive uses transaction-level pooling
+
+```typescript
+import { Pool } from "pg";
+
+// For parallel queries within a single request
+const pool = new Pool({
+  connectionString: env.HYPERDRIVE.connectionString,
+  max: 5, // Stay under Workers' 6 connection limit
+});
+```
+
+## Neon-Specific Features
+
+### Database Branching
+
+Create isolated database copies for development/testing:
+
+```bash
+# Create a branch via Neon CLI
+neon branch create --name feature-xyz
+
+# Or via MCP server
+# Use mcp_Neon_create_branch tool
+```
+
+Branches are useful for:
+- **Development environments** - Each developer gets isolated data
+- **Testing migrations** - Test schema changes safely
+- **Preview deployments** - Each PR can have its own database
+
+### Autoscaling
+
+Neon automatically scales compute based on load:
+- Scales up during high traffic
+- Scales to zero during inactivity (cost savings)
+- Configure minimum/maximum compute units in dashboard
+
+### Point-in-Time Recovery
+
+Restore to any point in the last 7-30 days:
+
+```sql
+-- Neon handles this via dashboard or API
+-- Not SQL-based, use Neon console
+```
+
+## Schema Design
+
+### Primary Keys
+
+```typescript
+import { serial, uuid, text } from "drizzle-orm/pg-core";
+
+// Auto-incrementing (simple, but exposes ordering)
+id: serial("id").primaryKey(),
+
+// UUID (better for distributed systems)
+id: uuid("id").defaultRandom().primaryKey(),
+
+// ULID/CUID (sortable, URL-safe)
+id: text("id").primaryKey().$defaultFn(() => createId()),
+```
+
+### Timestamps
+
+```typescript
+import { timestamp } from "drizzle-orm/pg-core";
+
+// Always use timestamptz for timezone awareness
+createdAt: timestamp("created_at", { withTimezone: true })
+  .defaultNow()
+  .notNull(),
+  
+updatedAt: timestamp("updated_at", { withTimezone: true })
+  .defaultNow()
+  .notNull()
+  .$onUpdate(() => new Date()),
+```
+
+### Indexes
+
+```typescript
+import { index, uniqueIndex } from "drizzle-orm/pg-core";
+
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    email: text("email").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    // Unique index for lookups
+    emailIdx: uniqueIndex("email_idx").on(table.email),
+    // Regular index for sorting/filtering
+    createdAtIdx: index("created_at_idx").on(table.createdAt),
+  })
+);
+```
+
+## Query Patterns
+
+### Select with Relations
+
+```typescript
+import { eq, desc, and, or, like } from "drizzle-orm";
+
+// Basic select
+const users = await db.select().from(usersTable);
+
+// With conditions
+const activeUsers = await db
+  .select()
+  .from(usersTable)
+  .where(eq(usersTable.status, "active"));
+
+// With ordering and pagination
+const recentUsers = await db
+  .select()
+  .from(usersTable)
+  .orderBy(desc(usersTable.createdAt))
+  .limit(10)
+  .offset(0);
+
+// Complex conditions
+const filtered = await db
+  .select()
+  .from(usersTable)
+  .where(
+    and(
+      eq(usersTable.status, "active"),
+      or(
+        like(usersTable.email, "%@company.com"),
+        eq(usersTable.role, "admin")
+      )
+    )
+  );
+```
+
+### Joins
+
+```typescript
+// Inner join
+const usersWithPosts = await db
+  .select({
+    user: usersTable,
+    post: postsTable,
+  })
+  .from(usersTable)
+  .innerJoin(postsTable, eq(usersTable.id, postsTable.authorId));
+
+// Left join (include users without posts)
+const allUsers = await db
+  .select()
+  .from(usersTable)
+  .leftJoin(postsTable, eq(usersTable.id, postsTable.authorId));
+```
+
+### Insert
+
+```typescript
+// Single insert
+const newUser = await db
+  .insert(usersTable)
+  .values({ email: "user@example.com", name: "User" })
+  .returning();
+
+// Bulk insert
+await db.insert(usersTable).values([
+  { email: "user1@example.com", name: "User 1" },
+  { email: "user2@example.com", name: "User 2" },
+]);
+
+// Upsert (insert or update)
+await db
+  .insert(usersTable)
+  .values({ email: "user@example.com", name: "Updated" })
+  .onConflictDoUpdate({
+    target: usersTable.email,
+    set: { name: "Updated", updatedAt: new Date() },
+  });
+```
+
+### Update
+
+```typescript
+await db
+  .update(usersTable)
+  .set({ name: "New Name", updatedAt: new Date() })
+  .where(eq(usersTable.id, userId));
+```
+
+### Delete
+
+```typescript
+await db
+  .delete(usersTable)
+  .where(eq(usersTable.id, userId));
+```
+
+### Transactions
+
+```typescript
+await db.transaction(async (tx) => {
+  const [user] = await tx
+    .insert(usersTable)
+    .values({ email: "user@example.com" })
+    .returning();
+    
+  await tx
+    .insert(profilesTable)
+    .values({ userId: user.id, bio: "Hello" });
+});
+```
+
+## Migrations
+
+### Generate Migrations
+
+```bash
+# Generate migration from schema changes
+pnpm drizzle-kit generate
+
+# Apply migrations
+pnpm drizzle-kit migrate
+
+# Open Drizzle Studio
+pnpm drizzle-kit studio
+```
+
+### Migration Best Practices
+
+1. **Always review generated SQL** before applying
+2. **Test on a branch first** - Use Neon branching
+3. **Make migrations reversible** when possible
+4. **Avoid data loss** - Add columns as nullable first, then migrate data
+
+## Security
+
+### Environment Variables
+
+```bash
+# .env (local development)
+DATABASE_URL=postgresql://user:password@host/database
+
+# Use Cloudflare secrets for production
+wrangler secret put DATABASE_URL
+```
+
+### Connection Security
+
+- Neon connections are always SSL-encrypted
+- Use role-based access control in Neon dashboard
+- Create separate database users for different environments
+
+## Performance Tips
+
+1. **Use Hyperdrive** - Reduces connection latency by 4-6x
+2. **Add indexes** - For frequently queried columns
+3. **Limit result sets** - Always use `.limit()` for large tables
+4. **Use `.select()` with specific columns** - Don't fetch unnecessary data
+5. **Batch operations** - Use bulk inserts/updates when possible
+6. **Monitor slow queries** - Use Neon's query insights

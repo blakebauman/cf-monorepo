@@ -1,0 +1,26 @@
+{
+	"name": "example-worker",
+	"main": "src/index.ts",
+	"compatibility_date": "2024-09-23",
+	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"BETTER_AUTH_URL": "https://example-worker.your-subdomain.workers.dev",
+		"ENVIRONMENT": "development"
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "your-hyperdrive-id"
+		}
+	]
+	// Rate Limiter configuration (optional)
+	// Uncomment and configure when you create a Rate Limiter in Cloudflare Dashboard
+	// "rate_limits": [
+	//   {
+	//     "binding": "RATE_LIMITER",
+	//     "namespace_id": "your-namespace-id",
+	//     "limit": 100,
+	//     "period": 60
+	//   }
+	// ]
+}

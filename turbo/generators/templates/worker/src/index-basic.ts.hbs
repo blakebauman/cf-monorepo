@@ -1,0 +1,22 @@
+/**
+ * {{name}} - {{description}}
+ */
+
+import type { Env } from "@cf-monorepo/types";
+import { errorResponse, successResponse } from "@cf-monorepo/utils";
+
+export default {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		const url = new URL(request.url);
+
+		// Health check
+		if (url.pathname === "/" || url.pathname === "/health") {
+			return Response.json(successResponse({ message: "{{name}} API" }));
+		}
+
+		// Add your routes here
+
+		return Response.json(errorResponse("Not found"), { status: 404 });
+	},
+};
+

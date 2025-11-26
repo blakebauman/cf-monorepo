@@ -1,0 +1,310 @@
+---
+description: Better Auth patterns for Cloudflare Workers
+globs: ["packages/auth/**/*.ts", "apps/**/*.ts"]
+---
+
+# Better Auth Guidelines
+
+[Better Auth](https://www.better-auth.com/) is a modern authentication library that works seamlessly with Cloudflare Workers and Drizzle ORM.
+
+## Setup with Drizzle
+
+```typescript
+// packages/auth/src/index.ts
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import type { Env } from "@cf-monorepo/types";
+import { createDb } from "@cf-monorepo/db";
+
+export function createAuth(env: Env) {
+  const db = createDb(env);
+  
+  return betterAuth({
+    database: drizzleAdapter(db, {
+      provider: "pg",
+    }),
+    secret: env.BETTER_AUTH_SECRET || "change-me-in-production",
+    baseURL: env.BETTER_AUTH_URL || "http://localhost:8787",
+    
+    // Email + Password authentication
+    emailAndPassword: {
+      enabled: true,
+    },
+  });
+}
+```
+
+## Environment Variables
+
+```bash
+# Required secrets
+BETTER_AUTH_SECRET=your-secret-key-at-least-32-chars
+BETTER_AUTH_URL=https://your-worker.workers.dev
+DATABASE_URL=postgresql://user:pass@host/db
+```
+
+## Hono Integration
+
+```typescript
+import { Hono } from "hono";
+import { createAuth } from "@cf-monorepo/auth";
+import type { Env } from "@cf-monorepo/types";
+
+type Context = { Bindings: Env };
+const app = new Hono<Context>();
+
+// Mount Better Auth routes
+app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+  const auth = createAuth(c.env);
+  return auth.handler(c.req.raw);
+});
+
+// Protected route example
+app.get("/api/me", async (c) => {
+  const auth = createAuth(c.env);
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+  
+  if (!session) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  
+  return c.json({ user: session.user });
+});
+```
+
+## Auth Middleware
+
+```typescript
+import type { Context, Next } from "hono";
+import { createAuth } from "@cf-monorepo/auth";
+
+export async function authMiddleware(c: Context, next: Next) {
+  const auth = createAuth(c.env);
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+  
+  if (!session) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  
+  // Set user in context for downstream handlers
+  c.set("user", session.user);
+  c.set("session", session.session);
+  
+  await next();
+}
+
+// Usage
+app.use("/api/protected/*", authMiddleware);
+
+app.get("/api/protected/data", (c) => {
+  const user = c.get("user");
+  return c.json({ message: `Hello ${user.name}!` });
+});
+```
+
+## Database Schema
+
+Better Auth requires specific tables. Generate them with the CLI:
+
+```bash
+# Generate Better Auth schema
+npx @better-auth/cli generate
+
+# Then run Drizzle migrations
+pnpm drizzle-kit generate
+pnpm drizzle-kit migrate
+```
+
+Or define manually in Drizzle:
+
+```typescript
+// packages/db/src/schema/auth.ts
+import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const session = pgTable("session", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expires_at").notNull(),
+  token: text("token").notNull().unique(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const account = pgTable("account", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const verification = pgTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+```
+
+## Client-Side Usage
+
+```typescript
+import { createAuthClient } from "better-auth/client";
+
+const authClient = createAuthClient({
+  baseURL: "https://your-api.workers.dev",
+});
+
+// Sign up
+const { data, error } = await authClient.signUp.email({
+  email: "user@example.com",
+  password: "securepassword",
+  name: "User Name",
+});
+
+// Sign in
+const { data, error } = await authClient.signIn.email({
+  email: "user@example.com",
+  password: "securepassword",
+});
+
+// Sign out
+await authClient.signOut();
+
+// Get session
+const session = await authClient.getSession();
+```
+
+## OAuth Providers
+
+```typescript
+import { betterAuth } from "better-auth";
+
+export function createAuth(env: Env) {
+  return betterAuth({
+    // ... other config
+    
+    socialProviders: {
+      github: {
+        clientId: env.GITHUB_CLIENT_ID,
+        clientSecret: env.GITHUB_CLIENT_SECRET,
+      },
+      google: {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+      },
+    },
+  });
+}
+```
+
+## Plugins
+
+### Two-Factor Authentication
+
+```typescript
+import { betterAuth } from "better-auth";
+import { twoFactor } from "better-auth/plugins";
+
+export function createAuth(env: Env) {
+  return betterAuth({
+    // ... other config
+    plugins: [
+      twoFactor({
+        issuer: "Your App Name",
+      }),
+    ],
+  });
+}
+```
+
+### Organization Support
+
+```typescript
+import { betterAuth } from "better-auth";
+import { organization } from "better-auth/plugins";
+
+export function createAuth(env: Env) {
+  return betterAuth({
+    // ... other config
+    plugins: [
+      organization({
+        allowUserToCreateOrganization: true,
+      }),
+    ],
+  });
+}
+```
+
+## API Endpoints
+
+Better Auth exposes these endpoints automatically:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/sign-up/email` | POST | Register with email/password |
+| `/api/auth/sign-in/email` | POST | Login with email/password |
+| `/api/auth/sign-out` | POST | Sign out current session |
+| `/api/auth/session` | GET | Get current session |
+| `/api/auth/user` | GET | Get current user |
+| `/api/auth/callback/:provider` | GET | OAuth callback |
+| `/api/auth/verify-email` | POST | Verify email |
+| `/api/auth/forgot-password` | POST | Request password reset |
+| `/api/auth/reset-password` | POST | Reset password |
+
+## Cloudflare-Specific Integration
+
+For better Cloudflare Workers integration, see [better-auth-cloudflare](https://github.com/zpg6/better-auth-cloudflare):
+
+```typescript
+import { betterAuthCloudflare } from "better-auth-cloudflare";
+
+export function createAuth(env: Env) {
+  return betterAuthCloudflare({
+    // Uses Cloudflare D1, KV, or Hyperdrive
+    database: env.DB, // D1 binding
+    // or
+    hyperdrive: env.HYPERDRIVE,
+  });
+}
+```
+
+## Best Practices
+
+1. **Use HTTPS** - Always deploy with HTTPS (automatic on workers.dev)
+2. **Strong secrets** - Use 32+ character random secrets
+3. **Store secrets properly** - Use `wrangler secret put`
+4. **Enable email verification** - For production apps
+5. **Set appropriate session duration** - Balance security and UX
+6. **Use CSRF protection** - Better Auth includes this by default
+7. **Implement rate limiting** - Protect auth endpoints

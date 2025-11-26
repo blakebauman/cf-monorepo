@@ -1,0 +1,191 @@
+---
+description: Cloudflare Workers patterns and best practices
+globs: ["**/wrangler.jsonc", "**/wrangler.toml", "apps/**/*.ts"]
+---
+
+# Cloudflare Workers Guidelines
+
+## Runtime Environment
+
+Cloudflare Workers run on the V8 JavaScript engine at the edge. Key constraints:
+- **No Node.js APIs** by default (use `nodejs_compat` flag for subset)
+- **Request-based execution** - Workers are stateless between requests
+- **Memory limits** - 128MB per invocation
+- **CPU time limits** - 10ms (free) / 30s (paid) CPU time
+- **Concurrent connections** - Max 6 simultaneous outbound connections
+
+## Bindings (Environment)
+
+Access bindings through the `env` parameter or `cloudflare:workers` import:
+
+```typescript
+// Via handler parameter (recommended for testability)
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const value = await env.KV.get("key");
+    return new Response(value);
+  },
+};
+
+// Via global import (useful for deeply nested functions)
+import { env } from "cloudflare:workers";
+const value = await env.KV.get("key");
+```
+
+## Wrangler Configuration
+
+Use `wrangler.jsonc` for type-safe configuration:
+
+```jsonc
+{
+  "name": "my-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  
+  // Hyperdrive for database connections
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE", "id": "your-hyperdrive-id" }
+  ],
+  
+  // KV namespaces
+  "kv_namespaces": [
+    { "binding": "CACHE", "id": "your-kv-id" }
+  ],
+  
+  // D1 databases
+  "d1_databases": [
+    { "binding": "DB", "database_name": "my-db", "database_id": "your-d1-id" }
+  ],
+  
+  // Durable Objects
+  "durable_objects": {
+    "bindings": [
+      { "name": "COUNTER", "class_name": "Counter" }
+    ]
+  },
+  
+  // R2 buckets
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "my-bucket" }
+  ]
+}
+```
+
+## Type Definitions
+
+Generate types matching your configuration:
+
+```bash
+wrangler types
+```
+
+Define your Env interface:
+
+```typescript
+interface Env {
+  // Hyperdrive
+  HYPERDRIVE: Hyperdrive;
+  
+  // KV
+  CACHE: KVNamespace;
+  
+  // D1
+  DB: D1Database;
+  
+  // R2
+  BUCKET: R2Bucket;
+  
+  // Durable Objects
+  COUNTER: DurableObjectNamespace;
+  
+  // Environment variables
+  API_KEY: string;
+  
+  // Secrets (same interface as env vars)
+  DATABASE_URL: string;
+}
+```
+
+## ExecutionContext
+
+Use `ctx.waitUntil()` for background tasks:
+
+```typescript
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    // Start response immediately
+    const response = new Response("OK");
+    
+    // Continue work after response is sent
+    ctx.waitUntil(async () => {
+      await env.KV.put("last-request", new Date().toISOString());
+      await logToAnalytics(request);
+    });
+    
+    return response;
+  },
+};
+```
+
+## Storage Options
+
+| Storage | Use Case | Consistency | Latency |
+|---------|----------|-------------|---------|
+| **KV** | Config, cache, sessions | Eventually consistent | ~60ms global |
+| **D1** | Relational data | Strong | Regional |
+| **Durable Objects** | Real-time coordination | Strong | Single location |
+| **R2** | Large files, media | Strong | Variable |
+| **Hyperdrive** | External Postgres | Depends on DB | Pooled connections |
+
+## Error Handling
+
+Always handle errors gracefully:
+
+```typescript
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    try {
+      return await handleRequest(request, env);
+    } catch (error) {
+      console.error("Worker error:", error);
+      return new Response(
+        JSON.stringify({ error: "Internal Server Error" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  },
+};
+```
+
+## Local Development
+
+```bash
+# Start local dev server with bindings emulation
+wrangler dev
+
+# Use .dev.vars for local secrets (never commit)
+# .dev.vars
+DATABASE_URL=postgresql://localhost:5432/dev
+API_KEY=dev-key
+```
+
+## Deployment
+
+```bash
+# Deploy to workers.dev subdomain
+wrangler deploy
+
+# Deploy to custom domain (configure in dashboard)
+wrangler deploy --route example.com/*
+```
+
+## Best Practices
+
+1. **Use `nodejs_compat`** for broader Node.js API support
+2. **Keep Workers stateless** - use bindings for persistence
+3. **Minimize cold starts** - keep bundle size small
+4. **Use `waitUntil`** for non-blocking background work
+5. **Set appropriate compatibility dates** - newer dates get newer features
+6. **Use secrets for sensitive data** - never hardcode credentials
+7. **Limit concurrent connections** - max 5 in connection pools

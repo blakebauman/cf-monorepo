@@ -1,0 +1,35 @@
+{
+	"name": "example-worker",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"build": "tsc --noEmit",
+		"type-check": "tsc --noEmit",
+		"lint": "biome lint ./src",
+		"lint:fix": "biome lint --write ./src",
+		"format": "biome format --write ./src",
+		"check": "biome check ./src",
+		"clean": "rm -rf .turbo .wrangler node_modules"
+	},
+	"dependencies": {
+		"@cf-monorepo/auth": "workspace:*",
+		"@cf-monorepo/db": "workspace:*",
+		"@cf-monorepo/middleware": "workspace:*",
+		"@cf-monorepo/openapi": "workspace:*",
+		"@cf-monorepo/types": "workspace:*",
+		"@cf-monorepo/utils": "workspace:*",
+		"@hono/zod-openapi": "^1.1.5",
+		"@scalar/hono-api-reference": "^0.9.25",
+		"drizzle-orm": "^0.44.7",
+		"hono": "^4.10.7",
+		"zod": "^4.1.13"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20240208.0",
+		"@types/node": "^20.11.0",
+		"typescript": "^5.3.3",
+		"wrangler": "^3.50.0"
+	}
+}

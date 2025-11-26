@@ -1,0 +1,44 @@
+#!/bin/bash
+# Claude Code Pre-Edit Hook
+# Quality gate for code modifications
+
+set -e
+
+TOOL_NAME="$1"
+FILE_PATH="$2"
+
+# Skip quality checks for certain files
+if [[ "$FILE_PATH" == *".md" ]] || [[ "$FILE_PATH" == *".json" ]] || [[ "$FILE_PATH" == *".yaml" ]] || [[ "$FILE_PATH" == *".yml" ]]; then
+    exit 0
+fi
+
+# Skip if not a TypeScript/JavaScript file
+if [[ ! "$FILE_PATH" =~ \.(ts|tsx|js|jsx)$ ]]; then
+    exit 0
+fi
+
+echo "🔍 Quality check: $FILE_PATH"
+
+# Check if file exists and is in a critical directory
+if [[ "$FILE_PATH" == *"src/"* ]] || [[ "$FILE_PATH" == *"packages/"* ]]; then
+    
+    # Check for common issues if file exists
+    if [ -f "$FILE_PATH" ]; then
+        
+        # Check for potential security issues
+        if grep -q "process\.env\." "$FILE_PATH" 2>/dev/null; then
+            if [[ "$FILE_PATH" != *"drizzle.config"* ]] && [[ "$FILE_PATH" != *".env"* ]]; then
+                echo "⚠️  Warning: Direct process.env usage detected. Consider using env parameter in Workers."
+            fi
+        fi
+        
+        # Check for debugging code
+        if grep -q "console\.log\|debugger" "$FILE_PATH" 2>/dev/null; then
+            echo "ℹ️  Note: Debug statements found. Consider removing before production."
+        fi
+    fi
+    
+    echo "✅ Quality check passed"
+fi
+
+exit 0

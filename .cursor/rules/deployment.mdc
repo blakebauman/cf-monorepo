@@ -1,0 +1,355 @@
+---
+description: Deployment readiness and validation for Cloudflare Workers
+globs: ["apps/**/wrangler.jsonc", "apps/**/package.json"]
+---
+
+# Deployment Guidelines
+
+Comprehensive deployment validation for Cloudflare Workers, ensuring production readiness.
+
+## Pre-Deployment Validation Checklist
+
+### Code Quality
+- [ ] All TypeScript errors resolved (`just typecheck`)
+- [ ] Test suite passes completely (`just test`)
+- [ ] Biome linting and formatting compliance (`just check`)
+- [ ] No debugging code in production build (no `console.log`, `debugger`)
+- [ ] Security vulnerabilities addressed (`pnpm audit`)
+
+### Configuration
+- [ ] `wrangler.jsonc` properly configured
+- [ ] All required bindings defined (Hyperdrive, KV, R2, etc.)
+- [ ] Environment variables set
+- [ ] Secrets configured in Cloudflare (`wrangler secret put`)
+- [ ] Compatibility flags appropriate
+
+### Database & Storage
+- [ ] Database migrations applied (`just db-migrate`)
+- [ ] Hyperdrive configuration validated
+- [ ] KV namespace permissions set
+- [ ] R2 bucket policies configured
+- [ ] Connection limits appropriate
+
+### Monitoring & Observability
+- [ ] Error handling implemented
+- [ ] Structured logging configured
+- [ ] Health check endpoints available
+- [ ] Performance monitoring setup
+- [ ] Alerting configured
+
+## Deployment Commands
+
+### Single Worker Deployment
+```bash
+# Validate and deploy specific worker
+just deploy-worker <worker-name>
+
+# Or manually
+cd apps/<worker-name>
+wrangler deploy
+```
+
+### Full Monorepo Deployment
+```bash
+# Deploy all workers
+just deploy
+
+# Or with Turborepo
+pnpm turbo deploy
+```
+
+## Environment-Specific Validation
+
+### Development
+- Local configuration validation
+- `.dev.vars` file completeness
+- Development binding setup
+
+### Staging
+- Staging environment parity
+- Integration test validation
+- Performance baseline checks
+
+### Production
+- Zero-downtime deployment strategy
+- Backup and rollback procedures
+- Security hardening validation
+- Performance optimization verification
+
+## Pre-Deployment Checks
+
+### Git Repository Status
+```bash
+# Ensure clean working directory
+git status
+
+# Verify branch (production should deploy from main)
+git branch --show-current
+```
+
+### Build and Type Checks
+```bash
+# Type check
+just typecheck
+
+# Build all packages
+just build
+```
+
+### Test Suite
+```bash
+# Run all tests
+just test
+
+# Run specific test suite
+pnpm test --filter <package-name>
+```
+
+### Code Quality
+```bash
+# Lint and format check
+just check
+
+# Fix auto-fixable issues
+just fix
+```
+
+### Dependency Validation
+```bash
+# Check dependency synchronization
+just deps-check
+
+# Fix dependency versions
+just deps-fix
+
+# Security audit
+pnpm audit
+```
+
+## Worker Configuration Validation
+
+### Wrangler Configuration
+```jsonc
+{
+	"name": "my-worker",
+	"main": "src/index.ts",
+	"compatibility_date": "2024-09-23",
+	
+	// Required bindings
+	"hyperdrive": [
+		{ "binding": "HYPERDRIVE", "id": "your-hyperdrive-id" }
+	],
+	
+	// Environment variables (use secrets for sensitive data)
+	"vars": {
+		"ENVIRONMENT": "production"
+	}
+}
+```
+
+### Environment Variables
+- Use `.dev.vars` for local development (git-ignored)
+- Use Cloudflare secrets for production: `wrangler secret put <NAME>`
+- Never commit secrets to version control
+
+### Binding Configuration
+- Verify all required bindings are configured
+- Check binding IDs match Cloudflare dashboard
+- Validate permissions and access
+
+## Database Migration Validation
+
+### Pre-Deployment
+```bash
+# Generate migrations
+just db-generate
+
+# Review generated SQL
+cat packages/db/drizzle/migrations/XXXX_*.sql
+
+# Test migrations locally
+just db-migrate
+```
+
+### Production Deployment
+1. Backup production database
+2. Apply migrations in staging first
+3. Verify migration success
+4. Deploy to production
+5. Monitor for issues
+
+## Security Validation
+
+### Secret Management
+- [ ] No hardcoded secrets in code
+- [ ] All secrets stored in Cloudflare secrets
+- [ ] `.dev.vars` is git-ignored
+- [ ] Production secrets configured
+
+### Security Headers
+- [ ] Security headers middleware configured
+- [ ] CORS policies restrictive
+- [ ] Content Security Policy set
+- [ ] HTTPS enforcement
+
+### Authentication
+- [ ] Better Auth properly configured
+- [ ] Session management secure
+- [ ] OAuth flows validated
+- [ ] Authorization checks in place
+
+## Performance Validation
+
+### Bundle Size
+```bash
+# Check bundle size
+wrangler deploy --dry-run
+
+# Target: < 1MB for optimal cold start
+```
+
+### Database Queries
+- [ ] Queries optimized with proper indexes
+- [ ] Connection pooling configured (Hyperdrive)
+- [ ] Query timeouts set appropriately
+- [ ] N+1 query patterns eliminated
+
+### Monitoring
+- [ ] Performance metrics configured
+- [ ] Error tracking enabled
+- [ ] Alerting thresholds set
+- [ ] Dashboard access verified
+
+## Deployment Process
+
+### 1. Pre-Deployment
+```bash
+# Run all checks
+just check && just test && just typecheck
+
+# Verify git status
+git status
+
+# Review changes
+git diff
+```
+
+### 2. Deployment
+```bash
+# Deploy to staging first
+wrangler deploy --env staging
+
+# Verify staging deployment
+# Run smoke tests
+
+# Deploy to production
+wrangler deploy
+```
+
+### 3. Post-Deployment
+```bash
+# Verify deployment
+wrangler tail
+
+# Check health endpoints
+curl https://your-worker.workers.dev/health
+
+# Monitor logs
+wrangler tail --format pretty
+```
+
+## Rollback Procedures
+
+### Code Rollback
+```bash
+# Revert to previous version
+git revert HEAD
+wrangler deploy
+
+# Or deploy specific commit
+git checkout <commit-hash>
+wrangler deploy
+```
+
+### Database Rollback
+```bash
+# Rollback migration
+just db-rollback
+
+# Or manually apply reverse migration
+psql $DATABASE_URL < packages/db/drizzle/migrations/rollback.sql
+```
+
+## Error Recovery
+
+### Common Deployment Issues
+
+**Failed Deployment**
+- Check Cloudflare dashboard for errors
+- Review `wrangler tail` logs
+- Verify binding configurations
+- Check secret availability
+
+**Configuration Mismatch**
+- Verify `wrangler.jsonc` matches dashboard
+- Check binding IDs are correct
+- Validate environment variables
+
+**Binding Connectivity**
+- Test bindings in staging first
+- Verify permissions
+- Check network connectivity
+
+**Performance Regression**
+- Compare bundle sizes
+- Review query performance
+- Check memory usage
+- Analyze cold start times
+
+## Integration with CI/CD
+
+### GitHub Actions Example
+```yaml
+name: Deploy
+
+on:
+	push:
+		branches: [main]
+
+jobs:
+	deploy:
+		runs-on: ubuntu-latest
+		steps:
+			- uses: actions/checkout@v3
+			- uses: pnpm/action-setup@v2
+			- uses: actions/setup-node@v3
+				with:
+					node-version: 20
+					
+			- run: pnpm install
+			- run: pnpm typecheck
+			- run: pnpm test
+			- run: pnpm build
+			
+			- name: Deploy
+				uses: cloudflare/wrangler-action@v3
+				with:
+					apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+```
+
+## Reporting
+
+After deployment, verify:
+- Deployment readiness score
+- Critical issues resolved
+- Performance optimization recommendations
+- Security enhancement suggestions
+- Post-deployment validation steps
+
+## Best Practices
+
+1. **Always test in staging first** - Never deploy directly to production
+2. **Use feature flags** - Gradual rollout for risky changes
+3. **Monitor closely** - Watch logs and metrics after deployment
+4. **Have rollback plan** - Know how to revert quickly
+5. **Document changes** - Keep deployment notes for troubleshooting

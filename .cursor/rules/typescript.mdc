@@ -1,0 +1,72 @@
+---
+description: TypeScript rules and patterns
+globs: ["**/*.ts", "**/*.tsx"]
+---
+
+# TypeScript Guidelines
+
+## Strict Mode
+
+This project uses strict TypeScript configuration:
+- `strict: true`
+- `noUncheckedIndexedAccess: true`
+- `verbatimModuleSyntax: true`
+
+## Import Patterns
+
+```typescript
+// Use import type for type-only imports
+import type { Env } from "@cf-monorepo/types";
+
+// Regular imports for values
+import { successResponse } from "@cf-monorepo/utils";
+```
+
+## Cloudflare Workers Types
+
+Workers use `@cloudflare/workers-types` for global types like:
+- `Request`, `Response`
+- `ExecutionContext`
+- `Env` (custom bindings)
+
+## Error Handling
+
+```typescript
+try {
+  // operation
+} catch (error) {
+  return c.json(
+    errorResponse(error instanceof Error ? error.message : "Unknown error"),
+    500
+  );
+}
+```
+
+## Database Patterns
+
+```typescript
+import { createDb, users } from "@cf-monorepo/db";
+import { eq } from "drizzle-orm";
+
+const db = createDb(env);
+const result = await db.select().from(users).where(eq(users.id, id));
+```
+
+## Hono Patterns
+
+```typescript
+import { Hono } from "hono";
+import type { Env } from "@cf-monorepo/types";
+
+type Context = {
+  Bindings: Env;
+};
+
+const app = new Hono<Context>();
+
+app.get("/", (c) => c.json({ message: "Hello" }));
+
+export default {
+  fetch: (request, env, ctx) => app.fetch(request, env, ctx),
+};
+```

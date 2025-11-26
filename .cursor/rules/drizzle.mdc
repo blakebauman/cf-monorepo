@@ -1,0 +1,497 @@
+---
+description: Drizzle ORM patterns and best practices
+globs: ["packages/db/**/*.ts", "**/schema/**/*.ts", "**/drizzle.config.ts"]
+---
+
+# Drizzle ORM Guidelines
+
+[Drizzle ORM](https://orm.drizzle.team/) is a TypeScript ORM that's lightweight, performant, and provides excellent type safety.
+
+## Schema Definition
+
+### Basic Table
+
+```typescript
+import {
+  pgTable,
+  serial,
+  text,
+  varchar,
+  integer,
+  boolean,
+  timestamp,
+  jsonb,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  name: varchar("name", { length: 255 }),
+  role: text("role").notNull().default("user"),
+  isActive: boolean("is_active").notNull().default(true),
+  metadata: jsonb("metadata").$type<{ preferences: object }>(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+```
+
+### Relations
+
+```typescript
+import { relations } from "drizzle-orm";
+
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content"),
+  authorId: integer("author_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Define relations for query builder
+export const usersRelations = relations(users, ({ many }) => ({
+  posts: many(posts),
+}));
+
+export const postsRelations = relations(posts, ({ one }) => ({
+  author: one(users, {
+    fields: [posts.authorId],
+    references: [users.id],
+  }),
+}));
+```
+
+### Enums
+
+```typescript
+import { pgEnum } from "drizzle-orm/pg-core";
+
+export const userRoleEnum = pgEnum("user_role", [
+  "admin",
+  "user",
+  "guest",
+]);
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  role: userRoleEnum("role").notNull().default("user"),
+});
+```
+
+### Indexes and Constraints
+
+```typescript
+import { pgTable, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
+
+export const posts = pgTable(
+  "posts",
+  {
+    id: serial("id").primaryKey(),
+    slug: varchar("slug", { length: 255 }).notNull(),
+    authorId: integer("author_id").notNull(),
+    publishedAt: timestamp("published_at"),
+  },
+  (table) => ({
+    // Unique index
+    slugIdx: uniqueIndex("slug_idx").on(table.slug),
+    // Regular index
+    authorIdx: index("author_idx").on(table.authorId),
+    // Composite index
+    authorPublishedIdx: index("author_published_idx").on(
+      table.authorId,
+      table.publishedAt
+    ),
+  })
+);
+
+// Composite primary key (for junction tables)
+export const userRoles = pgTable(
+  "user_roles",
+  {
+    userId: integer("user_id").notNull(),
+    roleId: integer("role_id").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.roleId] }),
+  })
+);
+```
+
+## Queries
+
+### Select Operations
+
+```typescript
+import { eq, ne, gt, gte, lt, lte, like, ilike, and, or, not, isNull, isNotNull, inArray, between, desc, asc, sql } from "drizzle-orm";
+
+// All records
+const allUsers = await db.select().from(users);
+
+// Specific columns
+const emails = await db
+  .select({ email: users.email, name: users.name })
+  .from(users);
+
+// With conditions
+const activeAdmins = await db
+  .select()
+  .from(users)
+  .where(and(eq(users.role, "admin"), eq(users.isActive, true)));
+
+// Pattern matching
+const gmailUsers = await db
+  .select()
+  .from(users)
+  .where(ilike(users.email, "%@gmail.com"));
+
+// IN clause
+const specificUsers = await db
+  .select()
+  .from(users)
+  .where(inArray(users.id, [1, 2, 3]));
+
+// Between
+const recentUsers = await db
+  .select()
+  .from(users)
+  .where(between(users.createdAt, startDate, endDate));
+
+// NULL checks
+const unverified = await db
+  .select()
+  .from(users)
+  .where(isNull(users.verifiedAt));
+```
+
+### Ordering and Pagination
+
+```typescript
+// Order by single column
+const sorted = await db
+  .select()
+  .from(users)
+  .orderBy(desc(users.createdAt));
+
+// Multiple order columns
+const multiSorted = await db
+  .select()
+  .from(users)
+  .orderBy(asc(users.name), desc(users.createdAt));
+
+// Pagination
+const page = 1;
+const pageSize = 10;
+const paginated = await db
+  .select()
+  .from(users)
+  .orderBy(users.id)
+  .limit(pageSize)
+  .offset((page - 1) * pageSize);
+```
+
+### Aggregations
+
+```typescript
+import { count, sum, avg, min, max } from "drizzle-orm";
+
+// Count
+const [{ total }] = await db
+  .select({ total: count() })
+  .from(users);
+
+// Group by with count
+const roleStats = await db
+  .select({
+    role: users.role,
+    count: count(),
+  })
+  .from(users)
+  .groupBy(users.role);
+
+// Sum
+const [{ totalAmount }] = await db
+  .select({ totalAmount: sum(orders.amount) })
+  .from(orders);
+```
+
+### Joins
+
+```typescript
+// Inner join
+const postsWithAuthors = await db
+  .select({
+    postTitle: posts.title,
+    authorName: users.name,
+  })
+  .from(posts)
+  .innerJoin(users, eq(posts.authorId, users.id));
+
+// Left join
+const usersWithPosts = await db
+  .select()
+  .from(users)
+  .leftJoin(posts, eq(users.id, posts.authorId));
+
+// Multiple joins
+const fullData = await db
+  .select()
+  .from(posts)
+  .innerJoin(users, eq(posts.authorId, users.id))
+  .leftJoin(comments, eq(posts.id, comments.postId));
+```
+
+### Insert Operations
+
+```typescript
+// Single insert with returning
+const [newUser] = await db
+  .insert(users)
+  .values({
+    email: "user@example.com",
+    name: "New User",
+  })
+  .returning();
+
+// Bulk insert
+await db.insert(users).values([
+  { email: "user1@example.com", name: "User 1" },
+  { email: "user2@example.com", name: "User 2" },
+]);
+
+// Upsert (on conflict)
+await db
+  .insert(users)
+  .values({ email: "user@example.com", name: "User" })
+  .onConflictDoUpdate({
+    target: users.email,
+    set: { name: "Updated User" },
+  });
+
+// On conflict do nothing
+await db
+  .insert(users)
+  .values({ email: "user@example.com", name: "User" })
+  .onConflictDoNothing();
+```
+
+### Update Operations
+
+```typescript
+// Update with returning
+const [updated] = await db
+  .update(users)
+  .set({ name: "New Name" })
+  .where(eq(users.id, 1))
+  .returning();
+
+// Update multiple fields
+await db
+  .update(users)
+  .set({
+    name: "New Name",
+    updatedAt: new Date(),
+  })
+  .where(eq(users.id, 1));
+
+// Conditional update
+await db
+  .update(users)
+  .set({ isActive: false })
+  .where(and(eq(users.role, "guest"), lt(users.createdAt, cutoffDate)));
+```
+
+### Delete Operations
+
+```typescript
+// Delete with returning
+const [deleted] = await db
+  .delete(users)
+  .where(eq(users.id, 1))
+  .returning();
+
+// Bulk delete
+await db
+  .delete(users)
+  .where(eq(users.isActive, false));
+```
+
+### Transactions
+
+```typescript
+const result = await db.transaction(async (tx) => {
+  // All operations use the transaction
+  const [user] = await tx
+    .insert(users)
+    .values({ email: "user@example.com" })
+    .returning();
+
+  await tx.insert(profiles).values({
+    userId: user.id,
+    bio: "Hello world",
+  });
+
+  // Return value from transaction
+  return user;
+});
+
+// With rollback
+await db.transaction(async (tx) => {
+  await tx.insert(users).values({ email: "user@example.com" });
+
+  // This will rollback the transaction
+  if (someCondition) {
+    tx.rollback();
+  }
+});
+```
+
+### Raw SQL
+
+```typescript
+import { sql } from "drizzle-orm";
+
+// Raw query
+const result = await db.execute(sql`SELECT * FROM users WHERE id = ${userId}`);
+
+// In select
+const withRaw = await db
+  .select({
+    id: users.id,
+    fullName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+  })
+  .from(users);
+
+// Raw condition
+const filtered = await db
+  .select()
+  .from(users)
+  .where(sql`${users.email} ILIKE ${"%" + searchTerm + "%"}`);
+```
+
+## Drizzle Kit
+
+### Configuration
+
+```typescript
+// drizzle.config.ts
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "./src/schema/index.ts",
+  out: "./drizzle",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env.DATABASE_URL || "",
+  },
+});
+```
+
+### Commands
+
+```bash
+# Generate migrations
+pnpm db:generate
+# or: pnpm --filter @cf-monorepo/db generate
+
+# Apply migrations
+pnpm db:migrate
+# or: pnpm --filter @cf-monorepo/db migrate
+
+# Open Drizzle Studio
+pnpm db:studio
+# or: pnpm --filter @cf-monorepo/db studio
+
+# Full database setup (Better Auth schema + migrations)
+pnpm db:setup
+# or: pnpm --filter @cf-monorepo/db setup
+```
+
+## Type Inference
+
+```typescript
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+
+// Infer types from schema
+export type User = InferSelectModel<typeof users>;
+export type NewUser = InferInsertModel<typeof users>;
+
+// Usage
+function createUser(data: NewUser): Promise<User> {
+  return db.insert(users).values(data).returning().then((r) => r[0]);
+}
+```
+
+## Database Migration Management
+
+### Schema Analysis
+When modifying schema files in `packages/db/src/schema/`:
+1. Analyze changes for breaking modifications
+2. Suggest appropriate migration strategies
+3. Validate Better Auth table compatibility
+4. Recommend indexes for performance
+
+### Migration Generation
+When running `just db-generate`:
+1. Review generated SQL for safety
+2. Suggest multi-step migrations when needed
+3. Validate against production constraints
+4. Document migration purpose and impact
+
+### Production Deployment
+For production migrations:
+1. Zero-downtime deployment strategies
+2. Backup and rollback procedures
+3. Connection pooling considerations for Hyperdrive
+4. Monitoring and validation steps
+
+### Migration Best Practices
+- **Breaking changes**: Plan multi-step migrations
+  - Add new column as nullable first
+  - Backfill data
+  - Make column required
+- **Better Auth compatibility**: Ensure custom schema doesn't conflict
+- **Index creation**: Add indexes in separate migration for large tables
+- **Foreign keys**: Add constraints after data migration
+- **Timezone handling**: Always use `withTimezone: true` for timestamps
+
+### Migration Commands
+```bash
+# Generate migration from schema changes
+just db-generate
+
+# Apply migrations
+just db-migrate
+
+# Review migration SQL
+cat packages/db/drizzle/migrations/XXXX_*.sql
+
+# Rollback (if supported)
+just db-rollback
+```
+
+### Error Recovery
+Common migration issues:
+- **Failed migrations**: Check partial application, plan rollback
+- **Schema drift**: Compare environments, sync schemas
+- **Better Auth conflicts**: Review table names and columns
+- **Connection timeouts**: Break large migrations into smaller steps
+
+## Best Practices
+
+1. **Use `$type<T>()` for JSON columns** - Provides type safety for JSONB
+2. **Define relations** - Enables powerful query builder features
+3. **Use `returning()`** - Get inserted/updated data without extra queries
+4. **Prefer `varchar` over `text`** - When you have length constraints
+5. **Always use `withTimezone`** - For timestamp columns
+6. **Index foreign keys** - PostgreSQL doesn't auto-index them
+7. **Use transactions** - For operations that must be atomic
+8. **Select specific columns** - Avoid `select()` when possible, use `select({ ... })`
+9. **Always use `limit()`** - For queries that could return large datasets
+10. **Use joins instead of N+1 queries** - Fetch related data in single query

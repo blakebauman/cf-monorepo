@@ -1,0 +1,49 @@
+{
+	"name": "cf-monorepo",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Cloudflare Workers monorepo template with Turborepo, pnpm workspaces, and shared packages",
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"lint": "biome lint .",
+		"lint:fix": "biome lint --write .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"check": "biome check .",
+		"check:fix": "biome check --write .",
+		"type-check": "turbo run type-check",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"clean": "turbo run clean && rm -rf node_modules .turbo",
+		"db:generate": "pnpm --filter @cf-monorepo/db generate",
+		"db:migrate": "pnpm --filter @cf-monorepo/db migrate",
+		"db:studio": "pnpm --filter @cf-monorepo/db studio",
+		"db:setup": "pnpm --filter @cf-monorepo/db setup",
+		"auth:generate-schema": "pnpm --filter @cf-monorepo/auth generate-schema",
+		"syncpack": "syncpack list-mismatches && syncpack fix-mismatches",
+		"syncpack:check": "syncpack list-mismatches",
+		"changeset": "changeset",
+		"version": "changeset version",
+		"release": "changeset publish",
+		"prepare": "lefthook install"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@changesets/cli": "^2.27.0",
+		"@cloudflare/vitest-pool-workers": "^0.10.11",
+		"@types/node": "^20.11.0",
+		"@vitest/coverage-v8": "^2.0.0",
+		"lefthook": "^1.7.0",
+		"syncpack": "^13.0.4",
+		"turbo": "^2.0.0",
+		"typescript": "^5.3.3",
+		"vitest": "^2.0.0"
+	},
+	"packageManager": "pnpm@9.0.0",
+	"engines": {
+		"node": ">=20.0.0",
+		"pnpm": ">=9.0.0"
+	}
+}

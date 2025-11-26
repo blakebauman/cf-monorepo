@@ -1,0 +1,472 @@
+---
+description: Hono framework patterns for Cloudflare Workers
+globs: ["apps/**/*.ts", "apps/**/src/**/*.ts"]
+---
+
+# Hono Framework Guidelines
+
+[Hono](https://hono.dev/) is an ultrafast, lightweight web framework built on Web Standards. It's ideal for Cloudflare Workers.
+
+## Basic Setup
+
+```typescript
+import { Hono } from "hono";
+import type { Env } from "@cf-monorepo/types";
+
+// Define context with bindings
+type Context = {
+  Bindings: Env;
+  Variables: {
+    user?: { id: string; email: string };
+  };
+};
+
+const app = new Hono<Context>();
+
+// Export for Cloudflare Workers
+export default {
+  fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
+    app.fetch(request, env, ctx),
+};
+```
+
+## Routing
+
+```typescript
+// Basic routes
+app.get("/", (c) => c.text("Hello!"));
+app.post("/users", (c) => c.json({ created: true }));
+app.put("/users/:id", (c) => c.json({ updated: true }));
+app.delete("/users/:id", (c) => c.json({ deleted: true }));
+
+// Path parameters
+app.get("/users/:id", (c) => {
+  const id = c.req.param("id");
+  return c.json({ id });
+});
+
+// Query parameters
+app.get("/search", (c) => {
+  const query = c.req.query("q");
+  const page = c.req.query("page") ?? "1";
+  return c.json({ query, page });
+});
+
+// Wildcard routes
+app.get("/api/*", (c) => c.json({ path: c.req.path }));
+
+// Route groups
+const api = new Hono<Context>();
+api.get("/users", (c) => c.json([]));
+api.get("/posts", (c) => c.json([]));
+app.route("/api/v1", api);
+```
+
+## Context Object
+
+```typescript
+app.get("/example", async (c) => {
+  // Access bindings
+  const env = c.env;
+  const value = await env.KV.get("key");
+
+  // Request info
+  const method = c.req.method;
+  const url = c.req.url;
+  const headers = c.req.header("Authorization");
+  const body = await c.req.json();
+  
+  // Cloudflare-specific request properties
+  const cf = c.req.raw.cf;
+  const country = cf?.country;
+  
+  // Set variables for downstream handlers
+  c.set("user", { id: "123", email: "user@example.com" });
+  
+  // Get variables
+  const user = c.get("user");
+
+  // Response helpers
+  return c.json({ data: value });      // JSON response
+  return c.text("Hello");               // Text response
+  return c.html("<h1>Hello</h1>");      // HTML response
+  return c.redirect("/other");          // Redirect
+  return c.notFound();                  // 404
+});
+```
+
+## Middleware
+
+```typescript
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
+import { timing } from "hono/timing";
+import { etag } from "hono/etag";
+
+// Apply globally
+app.use("*", logger());
+app.use("*", timing());
+app.use("*", secureHeaders());
+
+// CORS configuration
+app.use(
+  "*",
+  cors({
+    origin: ["https://example.com"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
+
+// Route-specific middleware
+app.use("/api/*", etag());
+
+// Custom middleware
+const authMiddleware = async (c, next) => {
+  const token = c.req.header("Authorization")?.replace("Bearer ", "");
+  
+  if (!token) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  
+  // Validate token and set user
+  const user = await validateToken(token, c.env);
+  c.set("user", user);
+  
+  await next();
+};
+
+app.use("/api/protected/*", authMiddleware);
+```
+
+## Request Validation
+
+```typescript
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+
+const createUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2),
+  age: z.number().min(0).optional(),
+});
+
+app.post(
+  "/users",
+  zValidator("json", createUserSchema),
+  async (c) => {
+    const data = c.req.valid("json");
+    // data is fully typed: { email: string; name: string; age?: number }
+    return c.json({ user: data }, 201);
+  }
+);
+
+// Query validation
+const searchSchema = z.object({
+  q: z.string().min(1),
+  page: z.coerce.number().default(1),
+  limit: z.coerce.number().default(10),
+});
+
+app.get(
+  "/search",
+  zValidator("query", searchSchema),
+  (c) => {
+    const { q, page, limit } = c.req.valid("query");
+    return c.json({ query: q, page, limit });
+  }
+);
+```
+
+## Error Handling
+
+```typescript
+import { HTTPException } from "hono/http-exception";
+
+// Throw HTTP exceptions
+app.get("/users/:id", async (c) => {
+  const user = await findUser(c.req.param("id"));
+  
+  if (!user) {
+    throw new HTTPException(404, { message: "User not found" });
+  }
+  
+  return c.json(user);
+});
+
+// Global error handler
+app.onError((err, c) => {
+  console.error("Error:", err);
+  
+  if (err instanceof HTTPException) {
+    return c.json(
+      { error: err.message },
+      err.status
+    );
+  }
+  
+  return c.json(
+    { error: "Internal Server Error" },
+    500
+  );
+});
+
+// 404 handler
+app.notFound((c) => {
+  return c.json({ error: "Not Found" }, 404);
+});
+```
+
+## Better Auth Integration
+
+```typescript
+import { createAuth } from "@cf-monorepo/auth";
+
+// Mount Better Auth handler
+app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+  const auth = createAuth(c.env);
+  return auth.handler(c.req.raw);
+});
+
+// Protected route with session check
+app.get("/api/me", async (c) => {
+  const auth = createAuth(c.env);
+  const session = await auth.api.getSession({
+    headers: c.req.raw.headers,
+  });
+  
+  if (!session) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  
+  return c.json({ user: session.user });
+});
+```
+
+## Database Integration
+
+```typescript
+import { createDb, users } from "@cf-monorepo/db";
+import { eq } from "drizzle-orm";
+
+app.get("/api/users/:id", async (c) => {
+  const db = createDb(c.env);
+  const id = Number(c.req.param("id"));
+  
+  const user = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+  
+  if (user.length === 0) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  
+  return c.json({ user: user[0] });
+});
+```
+
+## API Documentation
+
+Use [@scalar/hono-api-reference](https://github.com/scalar/scalar) for API docs:
+
+```typescript
+import { apiReference } from "@scalar/hono-api-reference";
+
+app.get(
+  "/docs",
+  apiReference({
+    spec: { url: "/openapi.json" },
+    theme: "purple",
+  })
+);
+```
+
+## Testing with Vitest
+
+```typescript
+import { describe, expect, it } from "vitest";
+import app from "./index";
+
+describe("API", () => {
+  it("should return hello", async () => {
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("Hello!");
+  });
+
+  it("should create user", async () => {
+    const res = await app.request("/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@example.com", name: "Test" }),
+    });
+    expect(res.status).toBe(201);
+  });
+});
+```
+
+## API Design Patterns
+
+### RESTful Resource Design
+```typescript
+// RESTful resource patterns
+GET    /api/v1/users           // List users
+GET    /api/v1/users/:id       // Get specific user
+POST   /api/v1/users           // Create user
+PUT    /api/v1/users/:id       // Update user (full)
+PATCH  /api/v1/users/:id       // Update user (partial)
+DELETE /api/v1/users/:id       // Delete user
+
+// Nested resources
+GET    /api/v1/users/:id/posts // Get user's posts
+POST   /api/v1/users/:id/posts // Create post for user
+```
+
+### Consistent Response Structure
+```typescript
+// Standard API response format
+interface APIResponse<T> {
+	data: T;
+	meta?: {
+		pagination?: PaginationMeta;
+		timestamp: string;
+		version: string;
+	};
+	errors?: APIError[];
+}
+
+// Error response format
+interface APIError {
+	code: string;
+	message: string;
+	field?: string;
+	details?: Record<string, unknown>;
+}
+
+// Usage
+app.get("/api/users/:id", async (c) => {
+	const user = await getUser(c.req.param("id"));
+	return c.json({
+		data: user,
+		meta: { timestamp: new Date().toISOString(), version: "v1" },
+	});
+});
+```
+
+### Pagination
+```typescript
+// Cursor-based pagination for large datasets
+interface PaginatedResponse<T> {
+	data: T[];
+	meta: {
+		hasNextPage: boolean;
+		hasPrevPage: boolean;
+		nextCursor?: string;
+		prevCursor?: string;
+		totalCount?: number;
+	};
+}
+
+const paginateQuery = async (query: Query, cursor?: string, limit = 20) => {
+	const results = await query
+		.where(cursor ? gt(table.id, cursor) : undefined)
+		.limit(limit + 1);
+
+	const hasNextPage = results.length > limit;
+	const data = hasNextPage ? results.slice(0, -1) : results;
+
+	return {
+		data,
+		meta: {
+			hasNextPage,
+			nextCursor: hasNextPage ? data[data.length - 1].id : undefined,
+		},
+	};
+};
+```
+
+### API Versioning
+```typescript
+// URL path versioning (recommended)
+const v1 = new Hono<Context>();
+v1.get("/users", (c) => c.json({ version: "v1" }));
+
+const v2 = new Hono<Context>();
+v2.get("/users", (c) => c.json({ version: "v2" }));
+
+app.route("/api/v1", v1);
+app.route("/api/v2", v2);
+
+// Deprecation handling
+app.use("/api/v1/*", async (c, next) => {
+	await next();
+	c.header("Deprecation", "true");
+	c.header("Sunset", "2024-12-31");
+	c.header("Link", '</api/v2>; rel="successor-version"');
+});
+```
+
+### Caching Strategies
+```typescript
+// Response caching with KV
+const cacheResponse = (ttl: number) => async (c: Context, next: Next) => {
+	const cacheKey = `${c.req.method}:${c.req.url}`;
+	const cached = await c.env.CACHE?.get(cacheKey);
+
+	if (cached) {
+		return c.json(JSON.parse(cached));
+	}
+
+	await next();
+
+	if (c.res.status === 200 && c.env.CACHE) {
+		await c.env.CACHE.put(cacheKey, JSON.stringify(await c.res.json()), {
+			expirationTtl: ttl,
+		});
+	}
+};
+
+app.use("/api/cacheable/*", cacheResponse(3600));
+```
+
+## OpenAPI Integration
+
+### Schema Definition
+Use `@cf-monorepo/openapi` for OpenAPI schemas:
+
+```typescript
+import { SuccessResponseSchema, ErrorResponseSchema } from "@cf-monorepo/openapi";
+
+// Define request/response schemas
+const UserSchema = z.object({
+	id: z.string().uuid(),
+	email: z.string().email(),
+	name: z.string(),
+});
+
+app.get("/api/users/:id", async (c) => {
+	// Implementation
+	return c.json({ data: user });
+});
+```
+
+### Documentation
+Use `@scalar/hono-api-reference` for interactive API docs (see existing pattern in hono.mdc).
+
+## Best Practices
+
+1. **Use typed context** - Define `Bindings` and `Variables` types
+2. **Validate all input** - Use Zod or similar for request validation
+3. **Handle errors globally** - Use `app.onError()` for consistent error responses
+4. **Group related routes** - Use `app.route()` for organization
+5. **Keep handlers thin** - Extract business logic to separate functions
+6. **Use middleware wisely** - Apply route-specific middleware when possible
+7. **Follow RESTful conventions** - Use proper HTTP methods and status codes
+8. **Implement consistent response format** - Use standard API response structure
+9. **Version your APIs** - Use URL path versioning (`/api/v1/...`)
+10. **Cache appropriately** - Use KV for frequently accessed, cacheable data
+11. **Optimize database queries** - Avoid N+1 queries, use joins, select specific columns

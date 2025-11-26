@@ -1,0 +1,82 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: 'Specific worker to deploy (optional)'
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-staging-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy workers to staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "${{ inputs.worker }}" ]; then
+            echo "Deploying specific worker: ${{ inputs.worker }}"
+            cd apps/${{ inputs.worker }}
+            npx wrangler deploy --env staging
+          else
+            echo "Deploying all workers to staging"
+            for worker in apps/*/; do
+              if [ -f "$worker/wrangler.jsonc" ]; then
+                worker_name=$(basename "$worker")
+                echo "Deploying $worker_name to staging"
+                cd "$worker"
+                npx wrangler deploy --env staging
+                cd - > /dev/null
+              fi
+            done
+          fi
+
+      - name: Run staging smoke tests
+        run: |
+          echo "Running smoke tests against staging environment"
+          # Add your staging smoke tests here
+          # curl -f https://staging.example.com/health || exit 1
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Staging deployment successful"
+          else
+            echo "❌ Staging deployment failed"
+          fi

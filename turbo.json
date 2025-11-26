@@ -1,0 +1,96 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"globalDependencies": [
+		"**/.env.*local",
+		"biome.json",
+		"tsconfig.json",
+		"tsconfig.base.json",
+		"vitest.config.ts",
+		"wrangler.jsonc"
+	],
+	"globalEnv": ["NODE_ENV", "CI", "VERCEL", "GITHUB_ACTIONS"],
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": [".wrangler/**", "dist/**", ".turbo/**"],
+			"inputs": [
+				"src/**",
+				"package.json",
+				"tsconfig.json",
+				"wrangler.jsonc",
+				"drizzle.config.ts",
+				"auth.config.ts"
+			],
+			"env": ["NODE_ENV", "ENVIRONMENT"]
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true,
+			"dependsOn": ["^build"]
+		},
+		"lint": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "biome.json", "package.json"],
+			"outputs": []
+		},
+		"format": {
+			"cache": false
+		},
+		"format-check": {
+			"inputs": ["src/**", "biome.json"],
+			"outputs": []
+		},
+		"type-check": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "tsconfig.json", "tsconfig.base.json", "package.json"],
+			"outputs": [".turbo/**"]
+		},
+		"test": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "**/*.test.ts", "**/*.spec.ts", "vitest.config.ts", "package.json"],
+			"outputs": ["coverage/**", ".turbo/**"],
+			"env": ["NODE_ENV"]
+		},
+		"test:watch": {
+			"cache": false,
+			"persistent": true,
+			"dependsOn": ["^build"]
+		},
+		"test:coverage": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/**", "**/*.test.ts", "**/*.spec.ts", "vitest.config.ts"],
+			"outputs": ["coverage/**"]
+		},
+		"deploy": {
+			"dependsOn": ["build", "test", "type-check", "lint"],
+			"inputs": ["src/**", "wrangler.jsonc", "package.json"],
+			"outputs": [],
+			"cache": false
+		},
+		"clean": {
+			"cache": false
+		},
+		"generate": {
+			"dependsOn": ["^build"],
+			"inputs": ["src/schema/**", "drizzle.config.ts", "auth.config.ts", "package.json"],
+			"outputs": ["drizzle/**", "src/schema/better-auth.ts"],
+			"cache": false
+		},
+		"migrate": {
+			"dependsOn": ["generate"],
+			"cache": false,
+			"env": ["DATABASE_URL"]
+		},
+		"studio": {
+			"cache": false,
+			"persistent": true,
+			"env": ["DATABASE_URL"]
+		},
+		"setup": {
+			"dependsOn": ["generate", "migrate"],
+			"cache": false,
+			"env": ["DATABASE_URL"]
+		}
+	},
+	"ui": "tui"
+}

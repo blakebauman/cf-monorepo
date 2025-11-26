@@ -1,0 +1,272 @@
+---
+description: Security patterns and validation for Cloudflare Workers applications
+globs: ["apps/**/*.ts", "packages/**/*.ts"]
+alwaysApply: true
+---
+
+# Security Guidelines
+
+Comprehensive security patterns and validation for Cloudflare Workers applications and edge computing environments.
+
+## Core Security Responsibilities
+
+- Identify security vulnerabilities in Workers code
+- Validate secure configuration patterns
+- Review authentication and authorization implementations
+- Ensure compliance with security best practices
+- Guide secure deployment strategies
+
+## Cloudflare Workers Security Focus
+
+### Runtime Security
+- Memory safety in V8 runtime environment
+- Secure handling of request/response data
+- Input validation and sanitization patterns
+- Protection against common web vulnerabilities (XSS, injection attacks)
+
+### Configuration Security
+- Secure environment variable usage
+- Proper secret management with Cloudflare secrets
+- Binding security (KV, R2, D1, Durable Objects)
+- Hyperdrive connection security
+
+### Edge Computing Considerations
+- Multi-tenant security in edge environments
+- Geographic data residency and compliance
+- Cold start security implications
+- Resource isolation and sandboxing
+
+## Security Validation Checklist
+
+### Pre-Deployment Security
+- [ ] No hardcoded secrets or API keys
+- [ ] Input validation on all endpoints
+- [ ] Proper error handling without information leakage
+- [ ] Security headers configured correctly
+- [ ] Authentication mechanisms properly implemented
+- [ ] Authorization checks on protected endpoints
+- [ ] SQL injection prevention measures
+- [ ] XSS protection in place
+- [ ] CSRF protection implemented
+- [ ] Rate limiting configured
+
+### Configuration Security
+- [ ] Environment variables properly scoped
+- [ ] Secrets stored in Cloudflare secrets, not code
+- [ ] Binding permissions follow least privilege
+- [ ] CORS policies restrictive and appropriate
+- [ ] Content Security Policy headers set
+- [ ] Secure cookie configuration
+- [ ] HTTPS enforcement
+- [ ] Security scanning in CI/CD pipeline
+
+### Database Security
+- [ ] Parameterized queries used consistently (Drizzle ORM)
+- [ ] Database connection encryption enabled
+- [ ] Least privilege database access
+- [ ] Sensitive data encryption
+- [ ] Audit logging enabled
+- [ ] Data retention policies implemented
+
+## Security Audit Areas
+
+### Authentication & Authorization
+- Better Auth implementation security
+- Session management and token handling
+- OAuth flow security and state management
+- RBAC and permission validation patterns
+- JWT token validation and signing
+
+### Data Protection
+- Input validation and output encoding
+- SQL injection prevention in Drizzle queries
+- NoSQL injection prevention in KV operations
+- File upload security for R2 operations
+- Data encryption at rest and in transit
+
+### Network Security
+- CORS policy configuration
+- Security headers implementation (CSP, HSTS, etc.)
+- Rate limiting and DDoS protection
+- TLS configuration and certificate management
+- API endpoint security
+
+### Code Security
+- Secret detection in source code
+- Dependency vulnerability scanning
+- Code injection prevention
+- Path traversal protection
+- Error handling and information disclosure
+
+## Security Patterns for Workers
+
+### Secure Request Handling
+```typescript
+// Input validation with Zod
+import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
+
+const userSchema = z.object({
+	email: z.string().email(),
+	name: z.string().min(1).max(255),
+});
+
+app.post("/users", zValidator("json", userSchema), async (c) => {
+	const data = c.req.valid("json");
+	// data is validated and safe
+	return c.json({ user: data });
+});
+
+// Secure response headers
+import { securityHeaders } from "@cf-monorepo/middleware";
+
+app.use("*", securityHeaders());
+```
+
+### Authentication Security
+```typescript
+// Secure session handling with Better Auth
+import { createAuth } from "@cf-monorepo/auth";
+
+const validateSession = async (c: Context) => {
+	const auth = createAuth(c.env);
+	const session = await auth.api.getSession({
+		headers: c.req.raw.headers,
+	});
+
+	if (!session) {
+		throw new HTTPException(401, { message: "Unauthorized" });
+	}
+
+	return session;
+};
+
+// Protected route
+app.get("/api/protected", async (c) => {
+	const session = await validateSession(c);
+	return c.json({ user: session.user });
+});
+```
+
+### Secret Management
+```typescript
+// ❌ NEVER do this
+const apiKey = "hardcoded-secret-key";
+
+// ✅ Use environment variables
+interface Env {
+	API_KEY: string;
+}
+
+export default {
+	async fetch(request: Request, env: Env) {
+		// Use env.API_KEY from Cloudflare secrets
+		const response = await fetch("https://api.example.com", {
+			headers: { Authorization: `Bearer ${env.API_KEY}` },
+		});
+		return response;
+	},
+};
+```
+
+### Input Validation
+```typescript
+// Always validate and sanitize input
+import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
+
+const createPostSchema = z.object({
+	title: z.string().min(1).max(200),
+	content: z.string().min(1),
+	tags: z.array(z.string()).max(10),
+});
+
+app.post("/posts", zValidator("json", createPostSchema), async (c) => {
+	const data = c.req.valid("json");
+	// Data is validated and sanitized
+	return c.json({ post: data });
+});
+```
+
+### SQL Injection Prevention
+```typescript
+// ✅ Use Drizzle ORM (parameterized queries)
+import { eq } from "drizzle-orm";
+import { users } from "@cf-monorepo/db";
+
+const user = await db
+	.select()
+	.from(users)
+	.where(eq(users.id, userId)); // Safe parameterized query
+
+// ❌ NEVER use raw SQL with user input
+// const query = `SELECT * FROM users WHERE id = '${userId}'`;
+```
+
+## Vulnerability Detection
+
+### Common Workers Vulnerabilities
+- Improper secret management
+- Missing input validation
+- Insecure CORS configuration
+- Information disclosure through errors
+- Insufficient authentication checks
+- Race conditions in edge scenarios
+
+### Security Scanning Integration
+- Automated dependency vulnerability scanning (`pnpm audit`)
+- Static code analysis for security issues
+- Runtime security monitoring
+- Security header validation
+- Certificate and TLS configuration checks
+
+## Compliance and Standards
+
+### Security Standards
+- OWASP Top 10 compliance
+- Security by design principles
+- Zero-trust architecture patterns
+- Defense in depth strategies
+- Principle of least privilege
+
+### Regulatory Compliance
+- GDPR data protection requirements
+- SOC 2 compliance considerations
+- Industry-specific security requirements
+- Data residency and sovereignty issues
+
+## Incident Response
+
+- Security incident detection patterns
+- Rapid response procedures for Workers
+- Log analysis for security events
+- Forensic investigation capabilities
+- Recovery and remediation strategies
+
+## Security Headers
+
+Use the security middleware from `@cf-monorepo/middleware`:
+
+```typescript
+import { securityHeaders } from "@cf-monorepo/middleware";
+
+app.use("*", securityHeaders());
+```
+
+This includes:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Strict-Transport-Security: max-age=31536000`
+- `Content-Security-Policy` (configurable)
+
+## Quality Checks
+
+Before committing code, verify:
+- No `process.env` usage (use `env` parameter instead)
+- No hardcoded secrets or API keys
+- No `console.log` or `debugger` statements in production code
+- All user input is validated
+- All database queries use parameterized statements
+- Security headers are configured
+- CORS policies are restrictive

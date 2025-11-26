@@ -1,0 +1,249 @@
+---
+alwaysApply: true
+---
+
+# Cloudflare Workers Monorepo
+
+This is a monorepo for Cloudflare Workers applications. See specialized rules for detailed guidance:
+
+- **cloudflare.mdc** - Workers runtime, bindings, and deployment
+- **hono.mdc** - Hono framework patterns and middleware
+- **neon.mdc** - Neon Postgres and Hyperdrive configuration
+- **drizzle.mdc** - Drizzle ORM schema and queries
+- **better-auth.mdc** - Authentication setup and patterns
+- **typescript.mdc** - TypeScript configuration and patterns
+- **testing.mdc** - Testing strategies and patterns
+- **security.mdc** - Security patterns and validation
+- **performance.mdc** - Performance optimization patterns
+- **deployment.mdc** - Deployment readiness and validation
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Runtime | Cloudflare Workers |
+| Framework | Hono |
+| Database | Neon Postgres via Hyperdrive |
+| ORM | Drizzle ORM |
+| Auth | Better Auth |
+| Build | Turborepo + pnpm |
+| Linting | Biome |
+| Testing | Vitest |
+
+## Project Structure
+
+```
+cf-monorepo/
+├── apps/                  # Cloudflare Worker applications
+│   └── example-worker/    # Example worker with full setup
+├── packages/              # Shared libraries
+│   ├── auth/              # Better Auth configuration
+│   ├── db/                # Drizzle ORM schema
+│   ├── middleware/        # Hono middleware (CORS, logging, security, etc.)
+│   ├── openapi/           # OpenAPI schemas and utilities
+│   ├── types/             # Shared TypeScript types
+│   └── utils/             # Utility functions
+├── turbo/generators/      # Scaffolding templates
+└── .cursor/rules/         # AI assistant rules
+```
+
+## Code Style
+
+- **Tabs** for indentation
+- **Double quotes** for strings
+- **Semicolons** required
+- **`const`** over `let`
+- **`import type`** for type-only imports
+- **Alphabetical** import organization
+
+## Quick Commands
+
+```bash
+# Development
+just dev                    # Start all workers
+just dev-worker <name>      # Start specific worker
+
+# Code Quality
+just check                  # Run all checks
+just fix                    # Fix auto-fixable issues
+just typecheck              # Type check only
+
+# Testing
+just test                   # Run tests
+just test-watch             # Watch mode
+
+# Scaffolding
+just new-worker             # Create new worker (interactive)
+just new-package            # Create new package
+
+# Database
+just db-generate            # Generate migrations
+just db-migrate             # Apply migrations
+just db-studio              # Open Drizzle Studio
+
+# Versioning
+just changeset              # Create changeset
+just version                # Version packages
+```
+
+## Creating Workers
+
+Use the interactive generator:
+
+```bash
+just new-worker
+```
+
+This prompts for:
+- Worker name
+- Description
+- Hono framework (yes/no)
+- Database support (yes/no)
+- Authentication (yes/no)
+
+## Shared Packages
+
+Import shared packages with workspace protocol:
+
+```typescript
+// In your worker
+import type { Env } from "@cf-monorepo/types";
+import { successResponse, errorResponse } from "@cf-monorepo/utils";
+import { createDb, users } from "@cf-monorepo/db";
+import { createAuth } from "@cf-monorepo/auth";
+import { requestId, structuredLogger, securityHeaders } from "@cf-monorepo/middleware";
+import { SuccessResponseSchema } from "@cf-monorepo/openapi";
+```
+
+## Environment Variables
+
+Local development uses `.dev.vars` (not `.env`):
+
+```bash
+# apps/example-worker/.dev.vars
+DATABASE_URL=postgresql://user:pass@host/db
+BETTER_AUTH_SECRET=your-32-char-secret
+BETTER_AUTH_URL=http://localhost:8787
+```
+
+Production uses Cloudflare secrets:
+
+```bash
+wrangler secret put DATABASE_URL
+wrangler secret put BETTER_AUTH_SECRET
+```
+
+Note: `.dev.vars` is automatically loaded by `wrangler dev` and is git-ignored.
+
+## Git Workflow
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat(auth): add OAuth support
+fix(db): resolve connection issue
+docs: update README
+chore: update dependencies
+```
+
+Pre-commit hooks (via Lefthook) run:
+- Biome formatting/linting on staged files
+- Type checking
+- Commit message validation
+
+## Development Guidance
+
+When assisting with code, always:
+1. Analyze existing patterns before suggesting new approaches
+2. Recommend appropriate shared packages from `@cf-monorepo/*`
+3. Ensure Workers runtime compatibility
+4. Follow established TypeScript and code style conventions
+5. Consider performance implications for edge computing
+
+## Auto-Import Intelligence
+
+Suggest imports from shared packages based on code context:
+- `@cf-monorepo/types` for TypeScript interfaces and types
+- `@cf-monorepo/db` for database operations and schema
+- `@cf-monorepo/middleware` for Hono middleware (CORS, logging, security, etc.)
+- `@cf-monorepo/utils` for utility functions
+- `@cf-monorepo/auth` for authentication with Better Auth
+- `@cf-monorepo/openapi` for OpenAPI schemas and utilities
+
+## Context Awareness
+
+Detect whether working in:
+- `apps/` (Workers) - Use Hono, bindings, edge-optimized patterns
+- `packages/` (shared libraries) - Focus on reusability, type safety, documentation
+
+Understand monorepo structure:
+- Recognize when to suggest creating new packages vs extending existing ones
+- Guide proper separation between edge logic and database operations
+- Ensure workspace dependencies use `workspace:*` protocol
+
+## Command Intelligence
+
+Suggest appropriate commands based on development context:
+- `just dev-worker <name>` for single worker development
+- `just db-generate` when schema changes detected
+- `just typecheck` when type errors likely
+- `just deps-check` when dependency issues suspected
+- `just test` when writing or modifying tests
+- `just check` before committing code
+
+## Worker Scaffolding
+
+When creating new workers, guide:
+
+### Framework Selection
+- **Basic Workers API** for simple endpoints without routing needs
+- **Hono framework** for full-featured applications with routing, middleware, validation
+- **Hybrid approaches** for specific use cases
+
+### Feature Integration
+- **Authentication**: Better Auth setup with `@cf-monorepo/auth`
+- **Database**: Drizzle ORM with `@cf-monorepo/db` and Hyperdrive
+- **Caching**: KV storage for frequently accessed data
+- **File Storage**: R2 buckets for large files
+- **Middleware**: Use `@cf-monorepo/middleware` for common patterns
+
+### Configuration Templates
+
+**Basic API Worker**
+```typescript
+interface Env {
+	// Minimal environment for simple APIs
+}
+
+export default {
+	async fetch(request: Request, env: Env): Promise<Response> {
+		// Implementation
+	},
+};
+```
+
+**Full-Stack Hono Worker**
+```typescript
+import { Hono } from "hono";
+import type { Env } from "@cf-monorepo/types";
+import { createDb } from "@cf-monorepo/db";
+import { createAuth } from "@cf-monorepo/auth";
+import { securityHeaders, structuredLogger } from "@cf-monorepo/middleware";
+
+const app = new Hono<{ Bindings: Env }>();
+
+app.use("*", securityHeaders());
+app.use("*", structuredLogger());
+
+// Routes...
+```
+
+## Quality Assurance
+
+Before committing code, verify:
+- No hardcoded secrets or API keys
+- Proper error handling patterns
+- Security best practices followed
+- Workers-specific anti-patterns avoided
+- Proper TypeScript usage and type safety
+- No `console.log` or `debugger` statements in production code

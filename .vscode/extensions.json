@@ -1,0 +1,11 @@
+{
+	"recommendations": [
+		"biomejs.biome",
+		"dbaeumer.vscode-eslint",
+		"ms-vscode.vscode-typescript-next",
+		"cloudflare.cloudflare-workers",
+		"bradlc.vscode-tailwindcss",
+		"ms-vscode.vscode-json"
+	],
+	"unwantedRecommendations": ["esbenp.prettier-vscode"]
+}

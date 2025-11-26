@@ -1,0 +1,23 @@
+{
+	"name": "@cf-monorepo/auth",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"scripts": {
+		"type-check": "tsc --noEmit",
+		"lint": "biome lint ./src",
+		"lint:fix": "biome lint --write ./src",
+		"generate-schema": "better-auth generate --config ./auth.config.ts --output ../db/src/schema/better-auth.ts",
+		"clean": "rm -rf .turbo node_modules"
+	},
+	"dependencies": {
+		"@cf-monorepo/db": "workspace:*",
+		"@cf-monorepo/types": "workspace:*",
+		"better-auth": "^1.0.0"
+	},
+	"devDependencies": {
+		"@better-auth/cli": "^1.0.0",
+		"typescript": "^5.3.3"
+	}
+}

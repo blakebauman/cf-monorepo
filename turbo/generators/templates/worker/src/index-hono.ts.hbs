@@ -1,0 +1,352 @@
+/**
+ * {{name}} - {{description}}
+{{#if useOpenAPI}}
+ * Production-ready with OpenAPI, request tracking, and middleware
+{{/if}}
+ */
+
+{{#if useAuth}}
+import { createAuth } from "@cf-monorepo/auth";
+{{/if}}
+{{#if useDatabase}}
+import { createDb{{#if useOpenAPI}}, users{{/if}} } from "@cf-monorepo/db";
+{{/if}}
+{{#if useMiddleware}}
+import {
+	enhancedCors,
+	errorHandler,
+	notFoundHandler,
+	rateLimiter,
+	requestId,
+	securityHeaders,
+	structuredLogger,
+} from "@cf-monorepo/middleware";
+{{/if}}
+{{#if useOpenAPI}}
+import { SuccessResponseSchema, standardErrorResponses } from "@cf-monorepo/openapi";
+{{/if}}
+import type { Env } from "@cf-monorepo/types";
+import { errorResponse, successResponse } from "@cf-monorepo/utils";
+{{#if useOpenAPI}}
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { z } from "@hono/zod-openapi";
+import { apiReference } from "@scalar/hono-api-reference";
+{{else}}
+import { Hono } from "hono";
+{{#unless useMiddleware}}
+import { cors } from "hono/cors";
+{{/unless}}
+{{/if}}
+
+type Context = {
+	Bindings: Env;
+	{{#if useMiddleware}}
+	Variables: {
+		requestId: string;
+	};
+	{{/if}}
+};
+
+{{#if useOpenAPI}}
+const app = new OpenAPIHono<Context>();
+{{else}}
+const app = new Hono<Context>();
+{{/if}}
+
+// ============================================================================
+// Middleware (order matters - apply in sequence)
+// ============================================================================
+
+{{#if useMiddleware}}
+// 1. Request ID - must be first to track all requests
+app.use("*", requestId());
+
+// 2. Structured logging - logs with request ID
+app.use("*", structuredLogger());
+
+// 3. Security headers
+app.use("*", securityHeaders());
+
+// 4. Enhanced CORS - environment-aware
+app.use(
+	"*",
+	enhancedCors({
+		environment: "development", // Will be determined from env at runtime
+		// Configure production origins in production
+		// origins: ["https://yourdomain.com"],
+	})
+);
+
+// 5. Rate limiting middleware (applies if RATE_LIMITER binding exists)
+app.use(
+	"/api/*",
+	rateLimiter({
+		limit: {
+			requests: 100,
+			window: 60, // 100 requests per minute
+		},
+	})
+);
+{{else}}
+// CORS configuration
+app.use(
+	"*",
+	cors({
+		origin: "*",
+		allowHeaders: ["Content-Type", "Authorization"],
+		allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		credentials: true,
+	})
+);
+{{/if}}
+
+{{#if useOpenAPI}}
+// ============================================================================
+// OpenAPI Documentation
+// ============================================================================
+
+app.doc("/openapi.json", {
+	openapi: "3.0.0",
+	info: {
+		version: "1.0.0",
+		title: "{{name}} API",
+		description: "Production-ready API with OpenAPI documentation",
+	},
+	servers: [
+		{
+			url: "https://{{name}}.your-subdomain.workers.dev",
+			description: "Production",
+		},
+		{
+			url: "http://localhost:8787",
+			description: "Development",
+		},
+	],
+});
+
+// Scalar UI for API documentation
+app.get("/docs", apiReference({ theme: "purple" }));
+
+// ============================================================================
+// Schemas
+// ============================================================================
+
+{{#if useDatabase}}
+const UserSchema = z
+	.object({
+		id: z.union([z.number(), z.string()]).openapi({
+			example: 123,
+		}),
+		email: z.string().email().openapi({
+			example: "user@example.com",
+		}),
+		name: z.string().nullable().openapi({
+			example: "John Doe",
+		}),
+		createdAt: z.union([z.date(), z.string()]).nullable().openapi({
+			example: "2024-01-01T00:00:00Z",
+		}),
+		updatedAt: z.union([z.date(), z.string()]).nullable().openapi({
+			example: "2024-01-01T00:00:00Z",
+		}),
+	})
+	.openapi("User");
+
+const UserResponseSchema = SuccessResponseSchema.extend({
+	data: UserSchema,
+}).openapi("UserResponse");
+
+const UsersResponseSchema = SuccessResponseSchema.extend({
+	data: z.array(UserSchema),
+}).openapi("UsersResponse");
+{{/if}}
+
+// Health check response using shared schema
+const HealthResponseSchema = SuccessResponseSchema.extend({
+	data: z.object({
+		message: z.string(),
+	}),
+}).openapi("HealthResponse");
+
+// ============================================================================
+// Routes
+// ============================================================================
+
+// Health check endpoint
+app.openapi(
+	{
+		method: "get",
+		path: "/",
+		summary: "Health check",
+		description: "Returns API health status",
+		responses: {
+			200: {
+				description: "API is healthy",
+				content: {
+					"application/json": {
+						schema: HealthResponseSchema,
+					},
+				},
+			},
+			...standardErrorResponses,
+		},
+	},
+	(c) => {
+		return c.json(successResponse({ message: "{{name}} API" }) as never);
+	}
+);
+
+{{#if useAuth}}
+// Auth routes - mount Better Auth handler (not OpenAPI)
+app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+	const auth = createAuth(c.env);
+	return auth.handler(c.req.raw);
+});
+
+// Get current user (protected route)
+app.openapi(
+	{
+		method: "get",
+		path: "/api/user",
+		summary: "Get current user",
+		description: "Returns the currently authenticated user",
+		security: [
+			{
+				bearerAuth: [],
+			},
+		],
+		responses: {
+			200: {
+				description: "User retrieved successfully",
+				content: {
+					"application/json": {
+						schema: {{#if useDatabase}}UserResponseSchema{{else}}SuccessResponseSchema{{/if}},
+					},
+				},
+			},
+			...standardErrorResponses,
+		},
+	},
+	async (c) => {
+		try {
+			const auth = createAuth(c.env);
+			const session = await auth.api.getSession({ headers: c.req.raw.headers });
+
+			if (!session) {
+				{{#if useMiddleware}}
+				const requestId = c.get("requestId");
+				return c.json(
+					{
+						...errorResponse("Unauthorized"),
+						requestId,
+					},
+					401
+				) as never;
+				{{else}}
+				return c.json(errorResponse("Unauthorized"), 401) as never;
+				{{/if}}
+			}
+
+			return c.json(successResponse(session.user)) as never;
+		} catch (error) {
+			{{#if useMiddleware}}
+			const requestId = c.get("requestId");
+			return c.json(
+				{
+					...errorResponse(error instanceof Error ? error.message : "Internal server error"),
+					requestId,
+				},
+				500
+			) as never;
+			{{else}}
+			return c.json(
+				errorResponse(error instanceof Error ? error.message : "Internal server error"),
+				500
+			) as never;
+			{{/if}}
+		}
+	}
+);
+{{/if}}
+
+{{#if useDatabase}}
+// Get all users (public route for demonstration)
+app.openapi(
+	{
+		method: "get",
+		path: "/api/users",
+		summary: "Get all users",
+		description: "Returns a list of all users (for demonstration)",
+		responses: {
+			200: {
+				description: "Users retrieved successfully",
+				content: {
+					"application/json": {
+						schema: UsersResponseSchema,
+					},
+				},
+			},
+			...standardErrorResponses,
+		},
+	},
+	async (c) => {
+		try {
+			const db = createDb(c.env);
+			const allUsers = await db.select().from(users);
+			return c.json(successResponse(allUsers)) as never;
+		} catch (error) {
+			{{#if useMiddleware}}
+			const requestId = c.get("requestId");
+			return c.json(
+				{
+					...errorResponse(error instanceof Error ? error.message : "Internal server error"),
+					requestId,
+				},
+				500
+			) as never;
+			{{else}}
+			return c.json(
+				errorResponse(error instanceof Error ? error.message : "Internal server error"),
+				500
+			) as never;
+			{{/if}}
+		}
+	}
+);
+{{/if}}
+
+// ============================================================================
+// Error Handlers
+// ============================================================================
+
+// Global error handler
+app.onError(errorHandler());
+
+// 404 handler
+app.notFound(notFoundHandler());
+{{else}}
+// Health check endpoint
+app.get("/", (c) => {
+	return c.json(successResponse({ message: "{{name}} API" }));
+});
+
+{{#if useAuth}}
+// Auth routes
+app.on(["POST", "GET"], "/api/auth/*", async (c) => {
+	const auth = createAuth(c.env);
+	return auth.handler(c.req.raw);
+});
+{{/if}}
+
+// Add your routes here
+{{/if}}
+
+// ============================================================================
+// Export
+// ============================================================================
+
+export default {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		return app.fetch(request, env, ctx);
+	},
+};
