@@ -236,14 +236,14 @@ if (queryDuration > 1000) {
 Always include context:
 
 ```typescript
-// ✅ Good
+// Good
 logger.info("User created", {
   userId: user.id,
   email: user.email,
   requestId: c.get("requestId"),
 });
 
-// ❌ Bad
+// Bad
 console.log("User created");
 ```
 
@@ -283,10 +283,10 @@ logger.error("Operation failed", {
 Never log passwords, tokens, or secrets:
 
 ```typescript
-// ❌ Bad
+// Bad
 logger.info("Login attempt", { password: userPassword });
 
-// ✅ Good
+// Good
 logger.info("Login attempt", { email: userEmail });
 ```
 

@@ -1,0 +1,91 @@
+---
+title: nomoji.dev - Emoji Control Rules
+version: 1.0.0
+priority: high
+description: Control emoji usage in AI-generated code and documentation
+---
+
+# Emoji Usage Rules
+
+This project enforces professional, emoji-free code and documentation.
+
+## Strict Contexts
+
+### Documentation & Markdown
+Do not use emojis in:
+- README files
+- Markdown documentation
+- API documentation
+- Code examples in docs
+- Headers, lists, or paragraphs
+
+Use clear, professional language without emoji decoration.
+
+### Console Output
+Do not use emojis in:
+- `console.log()`, `console.error()`, `console.warn()`
+- Terminal output
+- Standard output/error streams
+- Debug messages
+
+Use plain text for all terminal output.
+
+### CLI Tools & Command-Line Output
+Do not use emojis in:
+- Command-line interface output
+- Progress bars
+- Spinners
+- Status messages
+- Help text
+
+Use ASCII characters and plain text only.
+
+### Logging & Error Messages
+Do not use emojis in:
+- Application logs
+- Error messages
+- Debug output
+- Logging statements
+- Stack traces
+
+Logs should be machine-parseable and professional.
+
+### Code Comments
+Do not use emojis in:
+- Inline comments
+- JSDoc/TSDoc comments
+- Docstrings
+- Code documentation
+
+Write clear, descriptive comments using words only.
+
+### Git Commit Messages
+Do not use emojis in:
+- Commit messages
+- PR titles and descriptions
+- Branch names
+
+Use conventional commit format with plain text.
+
+## Relaxed Contexts
+
+### User Interface
+Emojis may be used in user-facing UI when appropriate for UX.
+
+## Rationale
+
+Emojis in code and documentation:
+- Reduce accessibility for screen readers
+- Create inconsistent rendering across platforms
+- Make text harder to search and parse programmatically
+- Appear unprofessional in enterprise contexts
+- Clutter console output and logs
+
+## Configuration
+
+Generated from: https://nomoji.dev
+Update your rules at: https://nomoji.dev/configure
+
+---
+
+**Remember**: Professional code should prioritize clarity and consistency over decoration. When in doubt, do not use emojis.

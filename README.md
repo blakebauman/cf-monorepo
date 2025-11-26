@@ -4,21 +4,21 @@ A production-ready monorepo template for building Cloudflare Workers application
 
 ## Features
 
-- 🏗️ **Monorepo Architecture** - Multiple workers and shared packages in a single repository
-- ⚡ **Turborepo** - Fast task orchestration with intelligent caching
-- 📦 **pnpm Workspaces** - Efficient dependency management
-- 🔄 **syncpack** - Synchronized dependency versions across packages
-- 🔷 **TypeScript** - Strict type safety across the monorepo
-- 🧹 **Biome** - Lightning-fast formatter and linter (~35x faster than Prettier)
-- 🪝 **Lefthook** - Git hooks for pre-commit checks and conventional commits
-- 🧪 **Vitest** - Fast unit testing with Cloudflare Workers support
-- 📝 **Changesets** - Version management and changelogs
-- 🛠️ **Just** - Modern task runner with intuitive commands
-- 🚀 **Hono** - Fast and lightweight web framework
-- 🗄️ **Drizzle ORM** - Type-safe database queries
-- 🔐 **Better Auth** - Modern authentication solution
-- ⚡ **Hyperdrive** - Fast database connections
-- 🐘 **Neon Postgres** - Serverless PostgreSQL database
+- **Monorepo Architecture** - Multiple workers and shared packages in a single repository
+- **Turborepo** - Fast task orchestration with intelligent caching
+- **pnpm Workspaces** - Efficient dependency management
+- **syncpack** - Synchronized dependency versions across packages
+- **TypeScript** - Strict type safety across the monorepo
+- **Biome** - Lightning-fast formatter and linter (~35x faster than Prettier)
+- **Lefthook** - Git hooks for pre-commit checks and conventional commits
+- **Vitest** - Fast unit testing with Cloudflare Workers support
+- **Changesets** - Version management and changelogs
+- **Just** - Modern task runner with intuitive commands
+- **Hono** - Fast and lightweight web framework
+- **Drizzle ORM** - Type-safe database queries
+- **Better Auth** - Modern authentication solution
+- **Hyperdrive** - Fast database connections
+- **Neon Postgres** - Serverless PostgreSQL database
 
 ## Project Structure
 
