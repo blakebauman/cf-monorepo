@@ -61,6 +61,18 @@ const config = {
 			dependencies: ["zod"],
 			isIgnored: false,
 		},
+		{
+			label: "Use same version for vitest across all packages",
+			packages: ["**"],
+			dependencies: ["vitest"],
+			isIgnored: false,
+		},
+		{
+			label: "Use same version for @vitest/coverage-v8 across all packages",
+			packages: ["**"],
+			dependencies: ["@vitest/coverage-v8"],
+			isIgnored: false,
+		},
 	],
 };
 

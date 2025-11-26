@@ -14,10 +14,10 @@
 	"dependencies": {
 		"@cf-monorepo/db": "workspace:*",
 		"@cf-monorepo/types": "workspace:*",
-		"better-auth": "^1.0.0"
+		"better-auth": "1.4.3"
 	},
 	"devDependencies": {
-		"@better-auth/cli": "^1.0.0",
+		"@better-auth/cli": "1.4.3",
 		"typescript": "^5.3.3"
 	}
 }

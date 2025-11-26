@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       worker:
-        description: 'Specific worker to deploy (optional)'
+        description: "Specific worker to deploy (optional)"
         required: false
         type: string
 
@@ -19,7 +19,7 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     environment: staging
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -17,7 +17,7 @@
 	"dependencies": {
 		"@cf-monorepo/types": "workspace:*",
 		"@neondatabase/serverless": "^1.0.2",
-		"drizzle-orm": "^0.44.7"
+		"drizzle-orm": "0.44.7"
 	},
 	"devDependencies": {
 		"@types/node": "^20.11.0",

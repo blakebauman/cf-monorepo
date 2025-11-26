@@ -3,8 +3,7 @@
 	"editor.defaultFormatter": "biomejs.biome",
 	"editor.formatOnSave": true,
 	"editor.codeActionsOnSave": {
-		"quickfix.biome": "explicit",
-		"source.organizeImports.biome": "explicit"
+		"source.fixAll.biome": "explicit"
 	},
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false, // Use tabs as per project style
@@ -46,5 +45,15 @@
 		"**/node_modules/**": true,
 		"**/dist/**": true,
 		"**/coverage/**": true
+	},
+
+	// GitHub Actions settings - suppress action resolution warnings
+	"github-actions.workflows.pinned.actions": {
+		"actions/checkout": "v4",
+		"pnpm/action-setup": "v4",
+		"actions/setup-node": "v4"
+	},
+	"yaml.schemas": {
+		"https://json.schemastore.org/github-workflow.json": ".github/workflows/*.yml"
 	}
 }

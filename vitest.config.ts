@@ -1,19 +1,9 @@
 import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
+import { defineConfig } from "vitest/config";
 
-export default defineWorkersConfig({
+export default defineConfig({
 	test: {
 		globals: true,
-		// Use Workers pool for testing Workers runtime
-		poolOptions: {
-			workers: {
-				wrangler: { configPath: "./wrangler.toml" },
-				miniflare: {
-					// Miniflare options for testing
-					compatibilityDate: "2024-09-23",
-					compatibilityFlags: ["nodejs_compat"],
-				},
-			},
-		},
 		include: ["**/*.{test,spec}.{js,ts,tsx}"],
 		exclude: ["**/node_modules/**", "**/dist/**", "**/.wrangler/**"],
 		coverage: {
@@ -29,13 +19,12 @@ export default defineWorkersConfig({
 			],
 		},
 		// Separate configuration for different test types
-		workspace: [
-			{
-				// Workers tests - use Workers pool
+		projects: [
+			// Workers tests - use Workers pool
+			defineWorkersConfig({
 				test: {
 					name: "workers",
 					include: ["apps/**/*.{test,spec}.{js,ts,tsx}"],
-					pool: "workers",
 					poolOptions: {
 						workers: {
 							wrangler: { configPath: "./apps/example-worker/wrangler.jsonc" },
@@ -46,9 +35,9 @@ export default defineWorkersConfig({
 						},
 					},
 				},
-			},
+			}),
+			// Package tests - use Node.js environment
 			{
-				// Package tests - use Node.js environment
 				test: {
 					name: "packages",
 					include: ["packages/**/*.{test,spec}.{js,ts,tsx}"],

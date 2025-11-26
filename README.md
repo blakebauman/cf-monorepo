@@ -206,8 +206,8 @@ mkdir apps/my-new-worker
     "@cloudflare/workers-types": "^4.20240208.0",
     "@cloudflare/vitest-pool-workers": "^0.5.0",
     "typescript": "^5.3.3",
-    "vitest": "^2.0.0",
-    "wrangler": "^3.50.0"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.51.0"
   }
 }
 ```

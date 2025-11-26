@@ -13,7 +13,7 @@
 	"dependencies": {
 		"@cf-monorepo/types": "workspace:*",
 		"@hono/zod-openapi": "^1.1.5",
-		"zod": "^4.1.13"
+		"zod": "4.1.13"
 	},
 	"devDependencies": {
 		"@types/node": "^20.11.0",
