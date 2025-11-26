@@ -196,7 +196,6 @@ export async function measurePerformance<T>(
 	const endTime = performance.now();
 	const duration = endTime - startTime;
 
-	// biome-ignore lint/suspicious/noConsoleLog: Test helper for performance measurement
 	console.log(`${label} took ${duration.toFixed(2)}ms`);
 
 	return { result, duration };
@@ -213,7 +212,6 @@ export function measureMemory(label = "memory") {
 			}
 		).memory;
 		if (memory) {
-			// biome-ignore lint/suspicious/noConsoleLog: Test helper for memory measurement
 			console.log(`${label}:`, {
 				used: `${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB`,
 				total: `${(memory.totalJSHeapSize / 1024 / 1024).toFixed(2)}MB`,
