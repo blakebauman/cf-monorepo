@@ -1,98 +1,98 @@
 name: Deploy to Production
 
 on:
-	push:
-		branches: [main]
-	workflow_dispatch:
-		inputs:
-			worker:
-				description: "Specific worker to deploy (optional)"
-				required: false
-				type: string
-			skip_tests:
-				description: "Skip tests (emergency deployment)"
-				required: false
-				type: boolean
-				default: false
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: "Specific worker to deploy (optional)"
+        required: false
+        type: string
+      skip_tests:
+        description: "Skip tests (emergency deployment)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
-	group: deploy-production-${{ github.ref }}
-	cancel-in-progress: false
+  group: deploy-production-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-	pre-deploy-checks:
-		name: Pre-deployment Validation
-		runs-on: ubuntu-latest
-		if: ${{ !inputs.skip_tests }}
+  pre-deploy-checks:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
 
-		steps:
-			- name: Checkout
-				uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-			- name: Install pnpm
-				uses: pnpm/action-setup@v4
-				with:
-					version: 9
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-			- name: Setup Node.js
-				uses: actions/setup-node@v4
-				with:
-					node-version: "20"
-					cache: "pnpm"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
 
-			- name: Install dependencies
-				run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-			- name: Run security scan
-				run: pnpm audit --audit-level moderate
+      - name: Run security scan
+        run: pnpm audit --audit-level moderate
 
-			- name: Run linting
-				run: pnpm lint
+      - name: Run linting
+        run: pnpm lint
 
-			- name: Run type checking
-				run: pnpm type-check
+      - name: Run type checking
+        run: pnpm type-check
 
-			- name: Run tests
-				run: pnpm test
+      - name: Run tests
+        run: pnpm test
 
-			- name: Build
-				run: pnpm build
+      - name: Build
+        run: pnpm build
 
-	deploy:
-		name: Deploy to Production
-		runs-on: ubuntu-latest
-		environment: production
-		needs: [pre-deploy-checks]
-		if: always() && (needs.pre-deploy-checks.result == 'success' || inputs.skip_tests)
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [pre-deploy-checks]
+    if: always() && (needs.pre-deploy-checks.result == 'success' || inputs.skip_tests)
 
-		steps:
-			- name: Checkout
-				uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-			- name: Install pnpm
-				uses: pnpm/action-setup@v4
-				with:
-					version: 9
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-			- name: Setup Node.js
-				uses: actions/setup-node@v4
-				with:
-					node-version: "20"
-					cache: "pnpm"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
 
-			- name: Install dependencies
-				run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-			- name: Authenticate with Cloudflare
-				uses: cloudflare/wrangler-action@v3
-				with:
-					apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-					accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Authenticate with Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-			- name: Deploy workers
-				run: |
-					if [ -n "${{ inputs.worker }}" ]; then
-						pnpm --filter "${{ inputs.worker }}" deploy
-					else
-						pnpm turbo deploy
-					fi
+      - name: Deploy workers
+        run: |
+          if [ -n "${{ inputs.worker }}" ]; then
+            pnpm --filter "${{ inputs.worker }}" deploy
+          else
+            pnpm turbo deploy
+          fi
