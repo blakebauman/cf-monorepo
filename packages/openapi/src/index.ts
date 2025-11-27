@@ -1,29 +1,28 @@
 /**
- * @cf-monorepo/openapi
+ * @repo/openapi
  * Shared OpenAPI schemas and utilities
  */
 
-// Response schemas
-export {
-	BaseApiResponseSchema,
-	SuccessResponseSchema,
-	ErrorResponseSchema,
-	PaginationSchema,
-	PaginatedResponseSchema,
-	NotFoundResponseSchema,
-	UnauthorizedResponseSchema,
-	ForbiddenResponseSchema,
-	BadRequestResponseSchema,
-	InternalServerErrorResponseSchema,
-	TooManyRequestsResponseSchema,
-	standardErrorResponses,
-} from "./responses";
-
 // Request schemas
 export {
-	PaginationQuerySchema,
-	SortQuerySchema,
-	SearchQuerySchema,
-	IdParamSchema,
 	CommonHeadersSchema,
+	IdParamSchema,
+	PaginationQuerySchema,
+	SearchQuerySchema,
+	SortQuerySchema,
 } from "./requests";
+// Response schemas
+export {
+	BadRequestResponseSchema,
+	BaseApiResponseSchema,
+	ErrorResponseSchema,
+	ForbiddenResponseSchema,
+	InternalServerErrorResponseSchema,
+	NotFoundResponseSchema,
+	PaginatedResponseSchema,
+	PaginationSchema,
+	SuccessResponseSchema,
+	standardErrorResponses,
+	TooManyRequestsResponseSchema,
+	UnauthorizedResponseSchema,
+} from "./responses";

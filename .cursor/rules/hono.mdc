@@ -11,7 +11,7 @@ globs: ["apps/**/*.ts", "apps/**/src/**/*.ts"]
 
 ```typescript
 import { Hono } from "hono";
-import type { Env } from "@cf-monorepo/types";
+import type { Env } from "@repo/types";
 
 // Define context with bindings
 type Context = {
@@ -222,7 +222,7 @@ app.notFound((c) => {
 ## Better Auth Integration
 
 ```typescript
-import { createAuth } from "@cf-monorepo/auth";
+import { createAuth } from "@repo/auth";
 
 // Mount Better Auth handler
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
@@ -248,7 +248,7 @@ app.get("/api/me", async (c) => {
 ## Database Integration
 
 ```typescript
-import { createDb, users } from "@cf-monorepo/db";
+import { createDb, users } from "@repo/db";
 import { eq } from "drizzle-orm";
 
 app.get("/api/users/:id", async (c) => {
@@ -436,10 +436,10 @@ app.use("/api/cacheable/*", cacheResponse(3600));
 ## OpenAPI Integration
 
 ### Schema Definition
-Use `@cf-monorepo/openapi` for OpenAPI schemas:
+Use `@repo/openapi` for OpenAPI schemas:
 
 ```typescript
-import { SuccessResponseSchema, ErrorResponseSchema } from "@cf-monorepo/openapi";
+import { SuccessResponseSchema, ErrorResponseSchema } from "@repo/openapi";
 
 // Define request/response schemas
 const UserSchema = z.object({

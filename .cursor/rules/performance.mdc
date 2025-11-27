@@ -97,7 +97,7 @@ const processLargeDataset = (data: unknown[]) => {
 ```typescript
 // Efficient Drizzle queries
 import { eq } from "drizzle-orm";
-import { users } from "@cf-monorepo/db";
+import { users } from "@repo/db";
 
 const optimizedQuery = async (db: ReturnType<typeof createDb>) => {
 	// Use select specific columns (not select *)

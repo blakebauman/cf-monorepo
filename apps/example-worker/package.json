@@ -14,12 +14,12 @@
 		"clean": "rm -rf .turbo .wrangler node_modules"
 	},
 	"dependencies": {
-		"@cf-monorepo/auth": "workspace:*",
-		"@cf-monorepo/db": "workspace:*",
-		"@cf-monorepo/middleware": "workspace:*",
-		"@cf-monorepo/openapi": "workspace:*",
-		"@cf-monorepo/types": "workspace:*",
-		"@cf-monorepo/utils": "workspace:*",
+		"@repo/auth": "workspace:*",
+		"@repo/db": "workspace:*",
+		"@repo/middleware": "workspace:*",
+		"@repo/openapi": "workspace:*",
+		"@repo/types": "workspace:*",
+		"@repo/utils": "workspace:*",
 		"@hono/zod-openapi": "^1.1.5",
 		"@scalar/hono-api-reference": "^0.9.25",
 		"drizzle-orm": "0.44.7",

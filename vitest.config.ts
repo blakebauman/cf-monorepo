@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	test: {
 		globals: true,
-		include: ["**/*.{test,spec}.{js,ts,tsx}"],
+		include: ["**/test/**/*.{test,spec}.{js,ts,tsx}"],
 		exclude: ["**/node_modules/**", "**/dist/**", "**/.wrangler/**"],
 		coverage: {
 			provider: "v8",
@@ -24,7 +24,7 @@ export default defineConfig({
 			defineWorkersConfig({
 				test: {
 					name: "workers",
-					include: ["apps/**/*.{test,spec}.{js,ts,tsx}"],
+					include: ["apps/**/test/**/*.{test,spec}.{js,ts,tsx}"],
 					poolOptions: {
 						workers: {
 							wrangler: { configPath: "./apps/example-worker/wrangler.jsonc" },
@@ -40,7 +40,7 @@ export default defineConfig({
 			{
 				test: {
 					name: "packages",
-					include: ["packages/**/*.{test,spec}.{js,ts,tsx}"],
+					include: ["packages/**/test/**/*.{test,spec}.{js,ts,tsx}"],
 					environment: "node",
 				},
 			},

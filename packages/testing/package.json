@@ -1,5 +1,5 @@
 {
-	"name": "@cf-monorepo/testing",
+	"name": "@repo/testing",
 	"version": "0.0.0",
 	"private": true,
 	"main": "./src/index.ts",
@@ -11,8 +11,8 @@
 		"clean": "rm -rf .turbo node_modules"
 	},
 	"dependencies": {
-		"@cf-monorepo/constants": "workspace:*",
-		"@cf-monorepo/types": "workspace:*"
+		"@repo/constants": "workspace:*",
+		"@repo/types": "workspace:*"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20240208.0",

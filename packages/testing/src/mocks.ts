@@ -2,7 +2,7 @@
  * Mock utilities for testing Workers and shared packages
  */
 
-import type { Env } from "@cf-monorepo/types";
+import type { Env } from "@repo/types";
 import { vi } from "vitest";
 
 /**

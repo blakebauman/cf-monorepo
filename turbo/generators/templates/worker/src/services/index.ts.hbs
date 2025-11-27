@@ -1,0 +1,16 @@
+/**
+ * Service factory
+ * Creates all service instances with database connection
+ */
+
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { UserService } from "./user-service";
+
+export function createServices(db: NeonHttpDatabase) {
+	return {
+		user: new UserService(db),
+	};
+}
+
+export type Services = ReturnType<typeof createServices>;
+

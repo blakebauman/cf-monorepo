@@ -6581,3 +6581,19 @@ declare abstract class WorkflowInstance {
 	 */
 	public sendEvent({ type, payload }: { type: string; payload: unknown }): Promise<void>;
 }
+declare module "cloudflare:test" {
+	/**
+	 * Creates an execution context for testing Cloudflare Workers
+	 */
+	export function createExecutionContext(): ExecutionContext;
+
+	/**
+	 * Waits for all promises in the execution context to complete
+	 */
+	export function waitOnExecutionContext(ctx: ExecutionContext): Promise<void>;
+
+	/**
+	 * Mock environment for testing
+	 */
+	export const env: Env;
+}

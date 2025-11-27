@@ -2,7 +2,7 @@
  * CORS configuration for different environments
  */
 
-import type { Env } from "@cf-monorepo/types";
+import type { Env } from "@repo/types";
 import { ENVIRONMENTS, getEnvironment } from "./index";
 
 export interface CorsConfig {

@@ -6,10 +6,10 @@ Structured logging, monitoring, and debugging patterns for Cloudflare Workers.
 
 ### Structured Logging
 
-The monorepo uses structured logging via `@cf-monorepo/middleware`:
+The monorepo uses structured logging via `@repo/middleware`:
 
 ```typescript
-import { structuredLogger } from "@cf-monorepo/middleware";
+import { structuredLogger } from "@repo/middleware";
 
 app.use("*", structuredLogger());
 ```
@@ -104,7 +104,7 @@ logger.info("Request completed", {
 Use the error handler middleware:
 
 ```typescript
-import { errorHandler } from "@cf-monorepo/middleware";
+import { errorHandler } from "@repo/middleware";
 
 app.onError(errorHandler());
 ```
@@ -165,7 +165,7 @@ logger.info("Processing", { requestId });
 Enable debug mode in development:
 
 ```typescript
-import { isDevelopment } from "@cf-monorepo/config";
+import { isDevelopment } from "@repo/config";
 
 if (isDevelopment(env)) {
   // Debug logging

@@ -40,7 +40,7 @@ Use `wrangler.jsonc` for type-safe configuration:
 {
   "name": "my-worker",
   "main": "src/index.ts",
-  "compatibility_date": "2024-09-23",
+  "compatibility_date": "2025-09-21",
   "compatibility_flags": ["nodejs_compat"],
   
   // Hyperdrive for database connections
@@ -186,6 +186,6 @@ wrangler deploy --route example.com/*
 2. **Keep Workers stateless** - use bindings for persistence
 3. **Minimize cold starts** - keep bundle size small
 4. **Use `waitUntil`** for non-blocking background work
-5. **Set appropriate compatibility dates** - newer dates get newer features
+5. **Set appropriate compatibility dates** - use the current date when creating new Workers; update periodically to access latest features (latest confirmed: 2025-09-21)
 6. **Use secrets for sensitive data** - never hardcode credentials
 7. **Limit concurrent connections** - max 5 in connection pools

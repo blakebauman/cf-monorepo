@@ -1,0 +1,63 @@
+---
+description: Repository layout and project structure for the Cloudflare Workers monorepo
+globs:
+alwaysApply: false
+---
+
+# Cloudflare Workers Monorepo - Project Structure
+
+This is a Cloudflare Workers monorepo built with Turborepo, pnpm workspaces, Hono, Drizzle ORM, Better Auth, and modern tooling.
+
+## Repository Layout
+
+### Core Directories
+
+- **`apps/`** - Individual Cloudflare Worker applications (deployable units)
+
+  - Each subdirectory is a separate worker project
+  - Example: [apps/example-worker/](mdc:apps/example-worker/) - demonstrates full worker setup with Hono, Better Auth, Drizzle, and OpenAPI
+
+- **`packages/`** - Shared libraries, utilities, and configurations
+  - [packages/auth/](mdc:packages/auth/) - Better Auth configuration
+  - [packages/config/](mdc:packages/config/) - Environment-aware configuration
+  - [packages/constants/](mdc:packages/constants/) - Shared constants
+  - [packages/db/](mdc:packages/db/) - Drizzle ORM schema and utilities
+  - [packages/middleware/](mdc:packages/middleware/) - Hono middleware (CORS, logging, security, rate limiting)
+  - [packages/openapi/](mdc:packages/openapi/) - OpenAPI schemas and utilities
+  - [packages/testing/](mdc:packages/testing/) - Shared testing utilities
+  - [packages/types/](mdc:packages/types/) - Shared TypeScript types
+  - [packages/utils/](mdc:packages/utils/) - Utility functions
+
+### Configuration Files
+
+- [package.json](mdc:package.json) - Root package with workspace scripts and dev dependencies
+- [pnpm-workspace.yaml](mdc:pnpm-workspace.yaml) - Defines pnpm workspace structure
+- [turbo.json](mdc:turbo.json) - Turborepo configuration for builds, tasks, and caching
+- [Justfile](mdc:Justfile) - Convenient command aliases for development
+- [tsconfig.json](mdc:tsconfig.json) - Root TypeScript configuration (with Workers types)
+- [tsconfig.base.json](mdc:tsconfig.base.json) - Base TypeScript configuration for packages
+- [syncpack.config.mjs](mdc:syncpack.config.mjs) - Dependency version synchronization
+- [biome.json](mdc:biome.json) - Linting and formatting configuration
+- [vitest.config.ts](mdc:vitest.config.ts) - Test configuration
+
+### Code Generation
+
+- **`turbo/generators/`** - Turbo gen templates for scaffolding
+  - `templates/worker/` - Cloudflare Worker template (Hono-based with optional database/auth)
+  - `templates/package/` - Shared package template
+
+### Build & Development
+
+- **`.turbo/`** - Turborepo cache and daemon files
+- **`node_modules/`** - Workspace dependencies (managed by pnpm)
+- **`.github/workflows/`** - CI/CD pipelines for testing and deployment
+
+## Key Concepts
+
+- **Monorepo Benefits**: Shared dependencies, atomic commits, consistent tooling, easier refactoring
+- **pnpm Workspaces**: Efficient dependency management with `workspace:*` protocol
+- **Turborepo**: Build orchestration with intelligent caching and parallelization
+- **Code Generation**: Use `just new-worker` to scaffold new workers from templates
+- **Shared Packages**: All packages use `@repo/` namespace
+- **Tooling**: Biome for linting/formatting, Vitest for testing, Just for task running
+- **Stack**: Hono framework, Drizzle ORM, Better Auth, Neon Postgres via Hyperdrive

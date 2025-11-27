@@ -64,7 +64,7 @@ Common issues and solutions for the Cloudflare Workers monorepo.
 **Solutions**:
 1. Run `pnpm type-check` to see all errors
 2. Check workspace dependencies use `workspace:*`
-3. Rebuild shared packages: `pnpm --filter "@cf-monorepo/*" build`
+3. Rebuild shared packages: `pnpm --filter "@repo/*" build`
 4. Clear Turbo cache: `pnpm clean && pnpm build`
 
 ### Issue: Turborepo cache issues
@@ -86,7 +86,7 @@ Common issues and solutions for the Cloudflare Workers monorepo.
 1. Ensure using `@cloudflare/vitest-pool-workers`
 2. Check `vitest.config.ts` uses `defineWorkersConfig`
 3. Verify test files are in correct workspace configuration
-4. Use `createMockEnv()` from `@cf-monorepo/testing`
+4. Use `createMockEnv()` from `@repo/testing`
 
 ### Issue: Tests timeout
 
@@ -126,7 +126,7 @@ Common issues and solutions for the Cloudflare Workers monorepo.
 
 **Solutions**:
 1. Check CORS configuration in middleware
-2. Verify allowed origins in `@cf-monorepo/config`
+2. Verify allowed origins in `@repo/config`
 3. Check `OPTIONS` requests are handled
 4. Review browser console for specific CORS errors
 
@@ -185,7 +185,7 @@ Common issues and solutions for the Cloudflare Workers monorepo.
 1. Compare environment variables
 2. Check Cloudflare bindings are configured
 3. Verify secrets are set correctly
-4. Check environment-specific configuration in `@cf-monorepo/config`
+4. Check environment-specific configuration in `@repo/config`
 5. Review deployment logs
 
 ### Issue: Different behavior between environments

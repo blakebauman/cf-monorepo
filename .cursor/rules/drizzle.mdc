@@ -1,6 +1,6 @@
 ---
 description: Drizzle ORM patterns and best practices
-globs: ["packages/db/**/*.ts", "**/schema/**/*.ts", "**/drizzle.config.ts"]
+globs: ["packages/db/**/*.ts", "**/schema/**/*.ts", "**/drizzle.config.ts", "**/services/**/*.ts", "apps/**/*.ts"]
 ---
 
 # Drizzle ORM Guidelines
@@ -375,6 +375,255 @@ const filtered = await db
   .where(sql`${users.email} ILIKE ${"%" + searchTerm + "%"}`);
 ```
 
+## Service Classes (REQUIRED)
+
+**CRITICAL**: All Drizzle database queries MUST be encapsulated in service classes. Direct database queries in route handlers, middleware, or utility functions are FORBIDDEN.
+
+### Why Service Classes?
+
+- **Separation of concerns**: Business logic separated from HTTP handling
+- **Reusability**: Database operations can be shared across routes
+- **Testability**: Easy to mock and test database operations in isolation
+- **Maintainability**: Centralized database logic makes changes easier
+- **Type safety**: Service methods provide clear contracts
+
+### Service Class Structure
+
+Service classes should be organized by domain entity (e.g., `UserService`, `PostService`). Place them in `apps/<worker-name>/src/services/` or a shared `packages/services/` package.
+
+```typescript
+// apps/example-worker/src/services/user.service.ts
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { eq, and, desc, count } from "drizzle-orm";
+import { users } from "@repo/db";
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+
+export type User = InferSelectModel<typeof users>;
+export type NewUser = InferInsertModel<typeof users>;
+
+export class UserService {
+	constructor(private readonly db: NeonHttpDatabase) {}
+
+	/**
+	 * Get all users with pagination
+	 */
+	async findAll(options?: { limit?: number; offset?: number }): Promise<User[]> {
+		const limit = options?.limit ?? 100;
+		const offset = options?.offset ?? 0;
+
+		return this.db
+			.select()
+			.from(users)
+			.orderBy(desc(users.createdAt))
+			.limit(limit)
+			.offset(offset);
+	}
+
+	/**
+	 * Get user by ID
+	 */
+	async findById(id: number): Promise<User | null> {
+		const [user] = await this.db
+			.select()
+			.from(users)
+			.where(eq(users.id, id))
+			.limit(1);
+
+		return user ?? null;
+	}
+
+	/**
+	 * Get user by email
+	 */
+	async findByEmail(email: string): Promise<User | null> {
+		const [user] = await this.db
+			.select()
+			.from(users)
+			.where(eq(users.email, email))
+			.limit(1);
+
+		return user ?? null;
+	}
+
+	/**
+	 * Get active users
+	 */
+	async findActive(): Promise<User[]> {
+		return this.db
+			.select()
+			.from(users)
+			.where(eq(users.isActive, true))
+			.orderBy(desc(users.createdAt));
+	}
+
+	/**
+	 * Create a new user
+	 */
+	async create(data: NewUser): Promise<User> {
+		const [user] = await this.db
+			.insert(users)
+			.values(data)
+			.returning();
+
+		return user;
+	}
+
+	/**
+	 * Update user by ID
+	 */
+	async update(id: number, data: Partial<Omit<User, "id" | "createdAt">>): Promise<User | null> {
+		const [updated] = await this.db
+			.update(users)
+			.set({ ...data, updatedAt: new Date() })
+			.where(eq(users.id, id))
+			.returning();
+
+		return updated ?? null;
+	}
+
+	/**
+	 * Delete user by ID
+	 */
+	async delete(id: number): Promise<boolean> {
+		const [deleted] = await this.db
+			.delete(users)
+			.where(eq(users.id, id))
+			.returning();
+
+		return deleted !== undefined;
+	}
+
+	/**
+	 * Count total users
+	 */
+	async count(): Promise<number> {
+		const [{ total }] = await this.db
+			.select({ total: count() })
+			.from(users);
+
+		return total;
+	}
+}
+```
+
+### Using Service Classes in Route Handlers
+
+```typescript
+// apps/example-worker/src/index.ts
+import { createDb } from "@repo/db";
+import { UserService } from "./services/user.service";
+
+// In route handler
+app.openapi(
+	{
+		method: "get",
+		path: "/api/users",
+		// ... OpenAPI config
+	},
+	async (c) => {
+		const db = createDb(c.env);
+		const userService = new UserService(db);
+		const allUsers = await userService.findAll();
+		return c.json(successResponse(allUsers)) as never;
+	}
+);
+```
+
+### Service Class Best Practices
+
+1. **One service per domain entity** - `UserService`, `PostService`, `CommentService`
+2. **Dependency injection** - Pass database instance in constructor
+3. **Type safety** - Use `InferSelectModel` and `InferInsertModel` for types
+4. **Method naming** - Use clear, descriptive names (`findById`, `create`, `update`, `delete`)
+5. **Error handling** - Let errors bubble up to route handlers for consistent error responses
+6. **Documentation** - Add JSDoc comments for all public methods
+7. **Transactions** - Use service methods within transactions when needed
+
+### Service Class with Transactions
+
+```typescript
+export class OrderService {
+	constructor(private readonly db: NeonHttpDatabase) {}
+
+	async createOrderWithItems(
+		orderData: NewOrder,
+		items: NewOrderItem[]
+	): Promise<Order> {
+		return this.db.transaction(async (tx) => {
+			// Create order
+			const [order] = await tx
+				.insert(orders)
+				.values(orderData)
+				.returning();
+
+			// Create order items
+			await tx.insert(orderItems).values(
+				items.map((item) => ({
+					...item,
+					orderId: order.id,
+				}))
+			);
+
+			return order;
+		});
+	}
+}
+```
+
+### Service Factory Pattern
+
+For convenience, create a factory function to instantiate all services:
+
+```typescript
+// apps/example-worker/src/services/index.ts
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+import { UserService } from "./user.service";
+import { PostService } from "./post.service";
+
+export function createServices(db: NeonHttpDatabase) {
+	return {
+		user: new UserService(db),
+		post: new PostService(db),
+	};
+}
+
+// Usage in route handler
+const services = createServices(createDb(c.env));
+const users = await services.user.findAll();
+```
+
+### Anti-Patterns (FORBIDDEN)
+
+```typescript
+// ❌ FORBIDDEN: Direct query in route handler
+app.get("/api/users", async (c) => {
+	const db = createDb(c.env);
+	const users = await db.select().from(users); // ❌ NOT ALLOWED
+	return c.json(users);
+});
+
+// ❌ FORBIDDEN: Query in utility function
+export function getUserById(db: NeonHttpDatabase, id: number) {
+	return db.select().from(users).where(eq(users.id, id)); // ❌ NOT ALLOWED
+}
+
+// ✅ CORRECT: Use service class
+app.get("/api/users", async (c) => {
+	const db = createDb(c.env);
+	const userService = new UserService(db);
+	const users = await userService.findAll(); // ✅ CORRECT
+	return c.json(users);
+});
+```
+
+### Enforcement
+
+When reviewing code:
+- **Reject** any direct `db.select()`, `db.insert()`, `db.update()`, or `db.delete()` calls outside service classes
+- **Require** all database operations to go through service class methods
+- **Suggest** creating new service classes when database operations are found in route handlers
+- **Refactor** existing direct queries into appropriate service classes
+
 ## Drizzle Kit
 
 ### Configuration
@@ -398,19 +647,19 @@ export default defineConfig({
 ```bash
 # Generate migrations
 pnpm db:generate
-# or: pnpm --filter @cf-monorepo/db generate
+# or: pnpm --filter @repo/db generate
 
 # Apply migrations
 pnpm db:migrate
-# or: pnpm --filter @cf-monorepo/db migrate
+# or: pnpm --filter @repo/db migrate
 
 # Open Drizzle Studio
 pnpm db:studio
-# or: pnpm --filter @cf-monorepo/db studio
+# or: pnpm --filter @repo/db studio
 
 # Full database setup (Better Auth schema + migrations)
 pnpm db:setup
-# or: pnpm --filter @cf-monorepo/db setup
+# or: pnpm --filter @repo/db setup
 ```
 
 ## Type Inference
@@ -485,13 +734,14 @@ Common migration issues:
 
 ## Best Practices
 
-1. **Use `$type<T>()` for JSON columns** - Provides type safety for JSONB
-2. **Define relations** - Enables powerful query builder features
-3. **Use `returning()`** - Get inserted/updated data without extra queries
-4. **Prefer `varchar` over `text`** - When you have length constraints
-5. **Always use `withTimezone`** - For timestamp columns
-6. **Index foreign keys** - PostgreSQL doesn't auto-index them
-7. **Use transactions** - For operations that must be atomic
-8. **Select specific columns** - Avoid `select()` when possible, use `select({ ... })`
-9. **Always use `limit()`** - For queries that could return large datasets
-10. **Use joins instead of N+1 queries** - Fetch related data in single query
+1. **ALWAYS use service classes** - All database queries MUST go through service classes, never directly in route handlers
+2. **Use `$type<T>()` for JSON columns** - Provides type safety for JSONB
+3. **Define relations** - Enables powerful query builder features
+4. **Use `returning()`** - Get inserted/updated data without extra queries
+5. **Prefer `varchar` over `text`** - When you have length constraints
+6. **Always use `withTimezone`** - For timestamp columns
+7. **Index foreign keys** - PostgreSQL doesn't auto-index them
+8. **Use transactions** - For operations that must be atomic
+9. **Select specific columns** - Avoid `select()` when possible, use `select({ ... })`
+10. **Always use `limit()`** - For queries that could return large datasets
+11. **Use joins instead of N+1 queries** - Fetch related data in single query

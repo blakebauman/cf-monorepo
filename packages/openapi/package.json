@@ -1,5 +1,5 @@
 {
-	"name": "@cf-monorepo/openapi",
+	"name": "@repo/openapi",
 	"version": "0.0.0",
 	"private": true,
 	"main": "./src/index.ts",
@@ -11,7 +11,7 @@
 		"clean": "rm -rf .turbo node_modules"
 	},
 	"dependencies": {
-		"@cf-monorepo/types": "workspace:*",
+		"@repo/types": "workspace:*",
 		"@hono/zod-openapi": "^1.1.5",
 		"zod": "4.1.13"
 	},

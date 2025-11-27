@@ -16,17 +16,17 @@
 		"clean": "rm -rf .turbo .wrangler node_modules"
 	},
 	"dependencies": {
-		"@cf-monorepo/types": "workspace:*",
-		"@cf-monorepo/utils": "workspace:*"{{#if useHono}},
+		"@repo/types": "workspace:*",
+		"@repo/utils": "workspace:*"{{#if useHono}},
 		"hono": "^4.10.7"{{/if}}{{#if useMiddleware}},
-		"@cf-monorepo/middleware": "workspace:*"{{/if}}{{#if useOpenAPI}},
-		"@cf-monorepo/openapi": "workspace:*",
+		"@repo/middleware": "workspace:*"{{/if}}{{#if useOpenAPI}},
+		"@repo/openapi": "workspace:*",
 		"@hono/zod-openapi": "^1.1.5",
 		"@scalar/hono-api-reference": "^0.9.25",
 		"zod": "^4.1.13"{{/if}}{{#if useDatabase}},
-		"@cf-monorepo/db": "workspace:*",
+		"@repo/db": "workspace:*",
 		"drizzle-orm": "^0.44.7"{{/if}}{{#if useAuth}},
-		"@cf-monorepo/auth": "workspace:*"{{/if}}
+		"@repo/auth": "workspace:*"{{/if}}
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20240208.0",

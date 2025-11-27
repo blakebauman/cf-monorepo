@@ -1,0 +1,357 @@
+---
+description: Testing strategies, patterns, and tools for Cloudflare Workers with Vitest
+globs:
+alwaysApply: false
+---
+
+# Testing Patterns and Practices
+
+This guide covers testing strategies, patterns, and tools used across the Workers monorepo.
+
+## Testing Stack
+
+### Core Testing Tools
+
+- **[Vitest](https://vitest.dev/)** - Fast unit testing framework
+- **[@cloudflare/vitest-pool-workers](https://github.com/cloudflare/workers-sdk/tree/main/packages/vitest-pool-workers)** - Worker runtime testing
+- **[Cloudflare Test Environment](https://developers.cloudflare.com/workers/testing/)** - Integration testing utilities
+
+### Configuration
+
+- **Root**: [vitest.config.ts](mdc:vitest.config.ts) - Workspace test configuration with separate projects for workers and packages
+- **Workers**: Use `@cloudflare/vitest-pool-workers` for Workers runtime testing
+- **Packages**: Use Node.js environment for package tests
+
+## Test Structure
+
+### Worker Testing Pattern
+
+```
+apps/example-worker/
+└── src/
+    ├── index.ts
+    ├── test/
+    │   └── index.test.ts      # Tests in dedicated test directory
+    └── services/
+        ├── user-service.ts
+        └── ...
+```
+
+### Package Testing Pattern
+
+```
+packages/middleware/
+└── src/
+    ├── index.ts
+    ├── cors.ts
+    ├── test/
+    │   └── index.test.ts     # Tests in dedicated test directory
+    └── ...
+```
+
+Tests are placed in a dedicated `test/` directory within `src/` with `.test.ts` extension.
+
+## Worker Integration Tests
+
+### Basic Worker Test
+
+```typescript
+// apps/example-worker/src/test/index.test.ts
+import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test'
+import { describe, expect, it } from 'vitest'
+
+import worker from '../index'
+
+describe('Example Worker', () => {
+	it('handles GET request', async () => {
+		const request = new Request('http://example.com/', {
+			method: 'GET',
+		})
+		const ctx = createExecutionContext()
+
+		const response = await worker.fetch(request, env, ctx)
+		await waitOnExecutionContext(ctx)
+
+		expect(response.status).toBe(200)
+		const data = await response.json()
+		expect(data.success).toBe(true)
+	})
+
+	it('handles POST request with JSON', async () => {
+		const request = new Request('http://example.com/api/users', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ email: 'test@example.com' }),
+		})
+		const ctx = createExecutionContext()
+
+		const response = await worker.fetch(request, env, ctx)
+		await waitOnExecutionContext(ctx)
+
+		expect(response.status).toBe(200)
+		const data = await response.json()
+		expect(data.success).toBe(true)
+	})
+})
+```
+
+### Testing with Environment Variables
+
+```typescript
+// Mock environment variables
+describe('Worker with Environment', () => {
+	it('uses environment variables', async () => {
+		// env object is automatically populated from .dev.vars
+		expect(env.SOME_SECRET).toBeDefined()
+
+		const request = new Request('http://example.com/config')
+		const ctx = createExecutionContext()
+		const response = await worker.fetch(request, env, ctx)
+
+		expect(response.status).toBe(200)
+	})
+})
+```
+
+## Unit Testing Shared Packages
+
+### Testing Middleware
+
+```typescript
+// packages/middleware/src/test/cors.test.ts
+import { Hono } from 'hono'
+import { describe, expect, it } from 'vitest'
+
+import { enhancedCors } from '../cors'
+
+describe('CORS Middleware', () => {
+	it('applies CORS headers', async () => {
+		const app = new Hono()
+		app.use('*', enhancedCors({ environment: 'development' }))
+		app.get('/', (c) => c.text('OK'))
+
+		const request = new Request('http://localhost/')
+		const response = await app.request(request)
+
+		expect(response.headers.get('Access-Control-Allow-Origin')).toBeDefined()
+	})
+
+	it('handles preflight requests', async () => {
+		const app = new Hono()
+		app.use('*', enhancedCors({ environment: 'development' }))
+		app.options('*', (c) => c.text(''))
+
+		const request = new Request('http://localhost/', { method: 'OPTIONS' })
+		const response = await app.request(request)
+
+		expect(response.status).toBe(200)
+	})
+})
+```
+
+### Testing TypeScript Types
+
+```typescript
+// packages/package-name/src/test/types.test.ts
+import { describe, expectTypeOf, it } from 'vitest'
+
+import type { SomeFunction, SomeType } from '../types'
+
+describe('Type Tests', () => {
+	it('has correct type signature', () => {
+		expectTypeOf<SomeFunction>().toEqualTypeOf<(input: string) => number>()
+	})
+
+	it('exports expected types', () => {
+		expectTypeOf<SomeType>().toHaveProperty('id')
+		expectTypeOf<SomeType>().toHaveProperty('name')
+	})
+})
+```
+
+## Test Commands
+
+### Running Tests
+
+```bash
+# Run all tests
+just test
+# or
+pnpm test
+
+# Run tests in watch mode
+just test-watch
+# or
+pnpm test:watch
+
+# Run tests with coverage
+just test-coverage
+# or
+pnpm test:coverage
+
+# Run tests for specific package
+pnpm --filter @repo/middleware test
+
+# Run tests for specific worker
+pnpm --filter example-worker test
+
+# Watch mode for development
+pnpm test:watch
+```
+
+### Turbo Test Pipeline
+
+```bash
+# Run tests with dependency awareness
+pnpm turbo test
+
+# Tests run in parallel where possible
+# Workers use Workers pool, packages use Node.js environment
+```
+
+## Vitest Configuration
+
+### Workspace Configuration
+
+[vitest.config.ts](mdc:vitest.config.ts) defines separate projects:
+
+```typescript
+import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config"
+import { defineConfig } from "vitest/config"
+
+export default defineConfig({
+	test: {
+		projects: [
+			// Workers tests - use Workers pool
+			defineWorkersConfig({
+				test: {
+					name: "workers",
+					include: ["apps/**/*.{test,spec}.{js,ts,tsx}"],
+					poolOptions: {
+						workers: {
+							wrangler: { configPath: "./apps/example-worker/wrangler.jsonc" },
+							miniflare: {
+								compatibilityDate: "2025-09-21",
+								compatibilityFlags: ["nodejs_compat"],
+							},
+						},
+					},
+				},
+			}),
+			// Package tests - use Node.js environment
+			{
+				test: {
+					name: "packages",
+					include: ["packages/**/*.{test,spec}.{js,ts,tsx}"],
+					environment: "node",
+				},
+			},
+		],
+	},
+})
+```
+
+### Test Structure
+
+- **Workers**: Tests use `@cloudflare/vitest-pool-workers` for Workers runtime
+- **Packages**: Tests use Node.js environment
+- **Location**: Tests placed alongside source files with `.test.ts` extension
+- **Coverage**: Configured with v8 provider, excludes node_modules, dist, .wrangler
+
+## Testing Best Practices
+
+### 1. Test Structure
+
+- **Tests in dedicated directories**: All tests in `src/test/` directory
+- **Workers**: Test files in `apps/*/src/test/` directory
+- **Packages**: Test files in `packages/*/src/test/` directory
+- **Consistent naming**: `*.test.ts` or `*.spec.ts` pattern
+- **Import paths**: Use relative imports from test directory (e.g., `import worker from "../index"`)
+
+### 2. Environment Setup
+
+- Use `.dev.vars` files for test environment variables (automatically loaded by Workers pool)
+- Mock external services appropriately using Vitest mocks
+- Test both success and error cases
+- Use `@repo/testing` package for shared test utilities and fixtures
+- Place all test files in `src/test/` directory structure
+
+### 3. Coverage and Quality
+
+```bash
+# Run tests with coverage
+pnpm test --coverage
+
+# Type check tests
+pnpm turbo check:types
+```
+
+### 4. CI Integration
+
+Tests run automatically in CI:
+
+- **Branch workflow** - All PRs and feature branches (via `pnpm test`)
+- **Release workflow** - Before deployment to production (via `pnpm test`)
+- Tests run in parallel where possible using Vitest projects
+
+### 5. Debugging Tests
+
+```bash
+# Debug specific test
+pnpm --filter example-worker test -- --reporter=verbose test/index.test.ts
+
+# Run with debug output
+DEBUG=* pnpm test
+
+# Run single test file
+pnpm test apps/example-worker/src/test/index.test.ts
+```
+
+## Common Testing Patterns
+
+### Mock External APIs
+
+```typescript
+// Mock fetch for external API calls
+global.fetch = vi.fn().mockResolvedValue({
+	ok: true,
+	json: () => Promise.resolve({ data: 'mocked' }),
+})
+```
+
+### Test Error Handling
+
+```typescript
+it('handles errors gracefully', async () => {
+	const request = new Request('http://example.com/error')
+	const ctx = createExecutionContext()
+
+	const response = await worker.fetch(request, env, ctx)
+
+	expect(response.status).toBe(500)
+	expect(await response.text()).toContain('Error')
+})
+```
+
+### Test Worker Bindings
+
+```typescript
+it('uses database connection', async () => {
+	// env is available from cloudflare:test
+	// DATABASE_URL or HYPERDRIVE binding is loaded from .dev.vars
+	const db = createDb(env)
+	const users = await db.select().from(usersTable)
+	expect(users).toBeDefined()
+})
+
+it('uses rate limiter binding', async () => {
+	if (env.RATE_LIMITER) {
+		const result = await env.RATE_LIMITER.limit({
+			key: 'test-key',
+			limit: 10,
+			window: 60,
+		})
+		expect(result.success).toBeDefined()
+	}
+})
+```

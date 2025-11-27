@@ -24,5 +24,5 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
 // Better Auth schema will be generated and exported from better-auth.ts
-// Uncomment the line below after running: pnpm --filter @cf-monorepo/auth generate-schema
+// Uncomment the line below after running: pnpm --filter @repo/auth generate-schema
 // export * from "./better-auth";

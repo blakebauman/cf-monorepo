@@ -13,8 +13,8 @@ globs: ["packages/auth/**/*.ts", "apps/**/*.ts"]
 // packages/auth/src/index.ts
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import type { Env } from "@cf-monorepo/types";
-import { createDb } from "@cf-monorepo/db";
+import type { Env } from "@repo/types";
+import { createDb } from "@repo/db";
 
 export function createAuth(env: Env) {
   const db = createDb(env);
@@ -47,8 +47,8 @@ DATABASE_URL=postgresql://user:pass@host/db
 
 ```typescript
 import { Hono } from "hono";
-import { createAuth } from "@cf-monorepo/auth";
-import type { Env } from "@cf-monorepo/types";
+import { createAuth } from "@repo/auth";
+import type { Env } from "@repo/types";
 
 type Context = { Bindings: Env };
 const app = new Hono<Context>();
@@ -78,7 +78,7 @@ app.get("/api/me", async (c) => {
 
 ```typescript
 import type { Context, Next } from "hono";
-import { createAuth } from "@cf-monorepo/auth";
+import { createAuth } from "@repo/auth";
 
 export async function authMiddleware(c: Context, next: Next) {
   const auth = createAuth(c.env);

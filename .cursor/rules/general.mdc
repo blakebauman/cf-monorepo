@@ -107,12 +107,12 @@ Import shared packages with workspace protocol:
 
 ```typescript
 // In your worker
-import type { Env } from "@cf-monorepo/types";
-import { successResponse, errorResponse } from "@cf-monorepo/utils";
-import { createDb, users } from "@cf-monorepo/db";
-import { createAuth } from "@cf-monorepo/auth";
-import { requestId, structuredLogger, securityHeaders } from "@cf-monorepo/middleware";
-import { SuccessResponseSchema } from "@cf-monorepo/openapi";
+import type { Env } from "@repo/types";
+import { successResponse, errorResponse } from "@repo/utils";
+import { createDb, users } from "@repo/db";
+import { createAuth } from "@repo/auth";
+import { requestId, structuredLogger, securityHeaders } from "@repo/middleware";
+import { SuccessResponseSchema } from "@repo/openapi";
 ```
 
 ## Environment Variables
@@ -155,7 +155,7 @@ Pre-commit hooks (via Lefthook) run:
 
 When assisting with code, always:
 1. Analyze existing patterns before suggesting new approaches
-2. Recommend appropriate shared packages from `@cf-monorepo/*`
+2. Recommend appropriate shared packages from `@repo/*`
 3. Ensure Workers runtime compatibility
 4. Follow established TypeScript and code style conventions
 5. Consider performance implications for edge computing
@@ -163,12 +163,12 @@ When assisting with code, always:
 ## Auto-Import Intelligence
 
 Suggest imports from shared packages based on code context:
-- `@cf-monorepo/types` for TypeScript interfaces and types
-- `@cf-monorepo/db` for database operations and schema
-- `@cf-monorepo/middleware` for Hono middleware (CORS, logging, security, etc.)
-- `@cf-monorepo/utils` for utility functions
-- `@cf-monorepo/auth` for authentication with Better Auth
-- `@cf-monorepo/openapi` for OpenAPI schemas and utilities
+- `@repo/types` for TypeScript interfaces and types
+- `@repo/db` for database operations and schema
+- `@repo/middleware` for Hono middleware (CORS, logging, security, etc.)
+- `@repo/utils` for utility functions
+- `@repo/auth` for authentication with Better Auth
+- `@repo/openapi` for OpenAPI schemas and utilities
 
 ## Context Awareness
 
@@ -201,11 +201,11 @@ When creating new workers, guide:
 - **Hybrid approaches** for specific use cases
 
 ### Feature Integration
-- **Authentication**: Better Auth setup with `@cf-monorepo/auth`
-- **Database**: Drizzle ORM with `@cf-monorepo/db` and Hyperdrive
+- **Authentication**: Better Auth setup with `@repo/auth`
+- **Database**: Drizzle ORM with `@repo/db` and Hyperdrive
 - **Caching**: KV storage for frequently accessed data
 - **File Storage**: R2 buckets for large files
-- **Middleware**: Use `@cf-monorepo/middleware` for common patterns
+- **Middleware**: Use `@repo/middleware` for common patterns
 
 ### Configuration Templates
 
@@ -225,10 +225,10 @@ export default {
 **Full-Stack Hono Worker**
 ```typescript
 import { Hono } from "hono";
-import type { Env } from "@cf-monorepo/types";
-import { createDb } from "@cf-monorepo/db";
-import { createAuth } from "@cf-monorepo/auth";
-import { securityHeaders, structuredLogger } from "@cf-monorepo/middleware";
+import type { Env } from "@repo/types";
+import { createDb } from "@repo/db";
+import { createAuth } from "@repo/auth";
+import { securityHeaders, structuredLogger } from "@repo/middleware";
 
 const app = new Hono<{ Bindings: Env }>();
 

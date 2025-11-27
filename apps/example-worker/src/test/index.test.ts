@@ -1,0 +1,33 @@
+import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
+
+import worker from "../index";
+
+describe("Example Worker", () => {
+	it("should return a valid response structure", async () => {
+		const request = new Request("http://example.com/", {
+			method: "GET",
+		});
+		const ctx = createExecutionContext();
+
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(200);
+		const data = (await response.json()) as { success: boolean; data?: unknown };
+		expect(data.success).toBe(true);
+		expect(data.data).toBeDefined();
+	});
+
+	it("should have correct content type", async () => {
+		const request = new Request("http://example.com/", {
+			method: "GET",
+		});
+		const ctx = createExecutionContext();
+
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.headers.get("content-type")).toContain("application/json");
+	});
+});

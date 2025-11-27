@@ -2,8 +2,8 @@
  * Database utilities and connection
  */
 
-import type { Env } from "@cf-monorepo/types";
 import { neon } from "@neondatabase/serverless";
+import type { Env } from "@repo/types";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 
@@ -22,5 +22,6 @@ export function createDb(env: Env) {
 	return drizzle({ client: sql, schema });
 }
 
-export * from "./schema";
 export type { NeonHttpDatabase } from "drizzle-orm/neon-http";
+export type Database = ReturnType<typeof createDb>;
+export * from "./schema";

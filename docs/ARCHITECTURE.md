@@ -60,10 +60,10 @@ All common functionality is extracted into shared packages under `packages/`:
 
 ### 2. Environment-Aware Configuration
 
-The `@cf-monorepo/config` package provides environment-aware configuration:
+The `@repo/config` package provides environment-aware configuration:
 
 ```typescript
-import { getCorsConfig, getDatabaseConfig } from "@cf-monorepo/config";
+import { getCorsConfig, getDatabaseConfig } from "@repo/config";
 
 const corsConfig = getCorsConfig(env);
 const dbConfig = getDatabaseConfig(env);
@@ -180,7 +180,7 @@ if (!session) {
 
 ### Test Utilities
 
-The `@cf-monorepo/testing` package provides:
+The `@repo/testing` package provides:
 - Mock Workers environment
 - Test fixtures
 - Custom matchers

@@ -1,0 +1,236 @@
+---
+description: Patterns and best practices for developing Cloudflare Workers in the monorepo
+globs:
+alwaysApply: false
+---
+
+# Cloudflare Worker Development Guide
+
+This guide covers patterns and best practices for developing Cloudflare Workers within this monorepo.
+
+## Worker Architecture
+
+### Example Worker Structure
+
+Reference [apps/example-worker/](mdc:apps/example-worker/) for the standard worker structure:
+
+```
+apps/example-worker/
+├── src/
+│   ├── index.ts          # Main worker entry point (Hono app)
+│   ├── test/
+│   │   └── index.test.ts # Tests in dedicated test directory
+│   └── services/         # Service layer for database operations
+│       ├── index.ts
+│       └── user-service.ts
+├── package.json          # Worker-specific dependencies
+├── wrangler.jsonc        # Cloudflare configuration
+├── tsconfig.json         # TypeScript configuration
+└── worker-configuration.d.ts  # Worker type definitions
+```
+
+## Creating New Workers
+
+### Using the Generator
+
+```bash
+# Interactive worker creation
+just new-worker
+# or
+pnpm turbo gen worker
+
+# Prompts for:
+# - Worker name
+# - Description
+# - Framework (Hono or basic)
+# - Database support (yes/no)
+# - Authentication support (yes/no)
+```
+
+### Templates Available
+
+- **`turbo/generators/templates/worker/`** - Worker template with Hono, optional database/auth support
+
+## Shared Packages for Workers
+
+### Middleware Package
+
+[packages/middleware/](mdc:packages/middleware/) provides:
+
+- Request ID middleware
+- Structured logging
+- Security headers
+- Enhanced CORS (environment-aware)
+- Rate limiting
+- Error handling
+
+### Usage Example
+
+```typescript
+import { Hono } from 'hono'
+import {
+	requestId,
+	structuredLogger,
+	securityHeaders,
+	enhancedCors,
+	rateLimiter,
+} from '@repo/middleware'
+
+const app = new Hono()
+app.use('*', requestId())
+app.use('*', structuredLogger())
+app.use('*', securityHeaders())
+app.use('*', enhancedCors({ environment: 'development' }))
+app.use('/api/*', rateLimiter({ limit: { requests: 100, window: 60 } }))
+```
+
+### Other Shared Packages
+
+- **`@repo/auth`** - Better Auth configuration (`createAuth(env)`)
+- **`@repo/db`** - Drizzle ORM utilities (`createDb(env)`)
+- **`@repo/types`** - Shared TypeScript types (`Env` interface)
+- **`@repo/utils`** - Utility functions (`successResponse`, `errorResponse`)
+- **`@repo/openapi`** - OpenAPI schemas and utilities
+
+## Worker Configuration
+
+### wrangler.jsonc Pattern
+
+```jsonc
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "worker-name",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-09-21", // Use current date for new Workers; update periodically
+	"compatibility_flags": ["nodejs_compat"],
+	"routes": [],
+	"logpush": true,
+	"observability": {
+		"enabled": true,
+	},
+	"vars": {
+		"ENVIRONMENT": "development", // overridden during deployment
+		"SENTRY_RELEASE": "unknown", // overridden during deployment
+	},
+}
+```
+
+### Environment Variables
+
+- **Local Development**: Use `.dev.vars` files (git-ignored, automatically loaded by `wrangler dev`)
+- **Production**: Configure secrets in Cloudflare dashboard or use `wrangler secret put`
+- **Required Variables**:
+  - `DATABASE_URL` - PostgreSQL connection string (or use HYPERDRIVE binding)
+  - `BETTER_AUTH_SECRET` - 32+ character secret for Better Auth
+  - `BETTER_AUTH_URL` - Worker URL (http://localhost:8787 for local)
+- Use `wrangler.jsonc` for JSON format with comments support
+
+## Testing Workers
+
+### Integration Tests
+
+```typescript
+// apps/example-worker/src/test/index.test.ts
+import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test'
+import { describe, expect, it } from 'vitest'
+
+import worker from '../index'
+
+describe('Example Worker', () => {
+	it('responds with expected output', async () => {
+		const request = new Request('http://example.com/')
+		const ctx = createExecutionContext()
+		const response = await worker.fetch(request, env, ctx)
+		await waitOnExecutionContext(ctx)
+
+		expect(response.status).toBe(200)
+		const data = await response.json()
+		expect(data.success).toBe(true)
+	})
+
+	it('handles API routes', async () => {
+		const request = new Request('http://example.com/api/users')
+		const ctx = createExecutionContext()
+		const response = await worker.fetch(request, env, ctx)
+		await waitOnExecutionContext(ctx)
+
+		expect(response.status).toBe(200)
+	})
+})
+```
+
+### Test Commands
+
+```bash
+# Run all tests
+just test
+# or
+pnpm test
+
+# Run tests for specific worker
+pnpm --filter example-worker test
+
+# Run tests in watch mode
+just test-watch
+# or
+pnpm test:watch
+
+# Run tests with coverage
+just test-coverage
+# or
+pnpm test:coverage
+```
+
+## Development Workflow
+
+### Local Development
+
+```bash
+# Start all workers in dev mode
+just dev
+# or
+pnpm dev
+
+# Start specific worker
+just dev-worker <name>
+# or
+pnpm --filter example-worker dev
+```
+
+### Build Process
+
+Turborepo handles the build pipeline as defined in [turbo.json](mdc:turbo.json):
+
+1. Build shared packages first (`^build` dependency)
+2. Build workers that depend on shared packages
+3. Generate deployment artifacts
+
+### Deployment
+
+```bash
+# Deploy all workers
+just deploy
+# or
+pnpm turbo deploy
+
+# Deploy specific worker
+just deploy-worker <name>
+# or
+pnpm --filter example-worker deploy
+```
+
+## Best Practices
+
+1. **Use Shared Packages**: Leverage `@repo/*` packages for common functionality
+   - `@repo/middleware` for Hono middleware
+   - `@repo/db` for database access
+   - `@repo/auth` for authentication
+   - `@repo/types` for TypeScript types
+2. **Service Layer Pattern**: Use service classes (like `UserService`) for database operations
+3. **OpenAPI-First**: Define APIs with `@hono/zod-openapi` and Zod schemas
+4. **Environment Separation**: Use different worker names for dev/staging/prod
+5. **Type Safety**: Use `Env` interface from `@repo/types` for environment bindings
+6. **Testing**: Write tests in `src/test/` directory with `.test.ts` extension
+7. **Caching**: Turborepo automatically caches builds - keep [turbo.json](mdc:turbo.json) dependencies accurate
+8. **Error Handling**: Use `errorHandler()` middleware and `errorResponse()` utility
+9. **Response Formatting**: Use `successResponse()` and `errorResponse()` from `@repo/utils`

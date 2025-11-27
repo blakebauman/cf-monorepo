@@ -1,0 +1,180 @@
+---
+description: Common development workflows and commands for the Workers monorepo
+globs:
+alwaysApply: false
+---
+
+# Development Workflow
+
+This guide covers the common development workflows and commands for working with the Workers monorepo.
+
+## Prerequisites
+
+- Node.js 20+ (use [nvm](https://github.com/nvm-sh/nvm) or [Volta](https://volta.sh/))
+- pnpm 9+ (`npm install -g pnpm@9`)
+- [Just](https://github.com/casey/just) task runner (`brew install just` or see [installation](https://just.systems/man/en/chapter_4.html))
+
+## Getting Started
+
+### Initial Setup
+
+```bash
+# Install all dependencies
+just install
+# or
+pnpm install
+```
+
+### Development Commands
+
+All commands can be run using either the [Justfile](mdc:Justfile) shortcuts or direct pnpm/turbo commands:
+
+#### Start Development
+
+```bash
+# Start dev servers for all workers
+just dev
+# or
+pnpm run dev
+```
+
+#### Create New Worker
+
+```bash
+# Interactive generator for new worker
+just new-worker
+# Uses templates from turbo/generators/templates/
+```
+
+#### Create New Package
+
+```bash
+# Generate shared package
+just new-package
+```
+
+#### Build & Test
+
+```bash
+# Build all projects
+just build
+# or
+pnpm turbo build
+
+# Run tests
+just test
+# or
+pnpm test
+
+# Run CI checks (linting, types, formatting)
+just check
+# or
+pnpm run check
+```
+
+#### Code Quality
+
+```bash
+# Auto-fix issues
+just fix
+# or
+pnpm run fix
+
+# Check code formatting
+pnpm run check:format
+
+# Fix formatting
+pnpm run fix:format
+```
+
+#### Deployment
+
+```bash
+# Deploy all workers
+just deploy
+# Requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
+```
+
+## Workspace Commands
+
+### Working with Specific Packages
+
+**Use pnpm filters for all workspace operations:**
+
+```bash
+# Run command in specific workspace package
+pnpm --filter @repo/db build
+pnpm --filter @repo/middleware test
+
+# Run command in specific worker app
+pnpm --filter example-worker dev
+pnpm --filter example-worker deploy
+
+# Run command in all worker apps
+pnpm --filter "./apps/*" dev
+
+# Add dependency to specific package
+pnpm --filter @repo/middleware add dependency-name
+pnpm --filter example-worker add dependency-name
+```
+
+### Turborepo Commands
+
+```bash
+# Build with dependency graph
+pnpm turbo build
+
+# Run checks across all packages
+pnpm turbo check
+
+# Clear turbo cache
+pnpm turbo clean
+```
+
+## Key Files to Know
+
+- [package.json](mdc:package.json) - Root scripts and workspace configuration
+- [turbo.json](mdc:turbo.json) - Build pipeline and task dependencies
+- [Justfile](mdc:Justfile) - Convenient command shortcuts
+- [syncpack.config.mjs](mdc:syncpack.config.mjs) - Dependency version synchronization
+- [biome.json](mdc:biome.json) - Linting and formatting configuration
+- [vitest.config.ts](mdc:vitest.config.ts) - Test configuration
+
+## Dependency Management
+
+This project uses:
+
+- **pnpm workspaces** for package linking (`workspace:*` protocol)
+- **syncpack** for version consistency across dependencies
+- **Turborepo** for build orchestration and caching
+- **Biome** for linting and formatting (replaces ESLint/Prettier)
+- **Vitest** for testing with Cloudflare Workers support
+
+Always use `pnpm` instead of `npm` or `yarn` to maintain workspace consistency.
+
+## Command Guidelines
+
+- **Use `pnpm --filter <package>`** for all workspace operations (build, test, deploy, dependencies)
+- **Use `just <command>`** for common development tasks (see `just` for all commands)
+- **Use `pnpm turbo <task>`** for running tasks across multiple packages with dependency awareness
+- **Use `workspace:*`** protocol for internal package dependencies in `package.json`
+
+## Code Style Guidelines
+
+- **Tabs**: Use tabs for indentation (configured in `biome.json`)
+- **Imports**: Type imports use `import type`, workspace imports via `@repo/`
+- **Import order**: Built-ins → Third-party → `@repo/*` → Relative (enforced by Biome)
+- **Variables**: Prefix unused with `_`, prefer `const` over `let` (enforced by Biome)
+- **Types**: Explicit function return types optional, use `import type` for type-only imports
+- **Framework**: Hono for workers, Vitest with `@cloudflare/vitest-pool-workers` for testing
+- **Config**: Use `wrangler.jsonc` for Worker configuration, tests alongside source files (`*.test.ts`)
+- **Formatting**: Double quotes, semicolons required, trailing commas (ES5) - all enforced by Biome
+
+## Important Notes
+
+- **TypeScript Configs**: Packages extend `../../tsconfig.base.json` for base configuration
+- **Worker Types**: Worker types are included via `@cloudflare/workers-types` and `worker-configuration.d.ts`
+- **Linting**: Use `just check` or `pnpm check` to run Biome linting and formatting checks
+- **Dependencies**: Always use `workspace:*` protocol for internal `@repo/*` dependencies
+- **Environment Variables**: Use `.dev.vars` files for local development (git-ignored)
+- **Testing**: Tests use Vitest with separate configurations for workers (Workers pool) and packages (Node.js)

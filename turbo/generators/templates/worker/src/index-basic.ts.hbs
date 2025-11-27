@@ -2,8 +2,8 @@
  * {{name}} - {{description}}
  */
 
-import type { Env } from "@cf-monorepo/types";
-import { errorResponse, successResponse } from "@cf-monorepo/utils";
+import type { Env } from "@repo/types";
+import { errorResponse, successResponse } from "@repo/utils";
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

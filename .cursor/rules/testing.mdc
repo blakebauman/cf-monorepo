@@ -92,7 +92,7 @@ describe("Worker Tests", () => {
 ### Database Testing
 ```typescript
 // Database testing with transactions
-import { createDb } from "@cf-monorepo/db";
+import { createDb } from "@repo/db";
 
 describe("Database Operations", () => {
 	let db: ReturnType<typeof createDb>;
@@ -115,7 +115,7 @@ describe("Database Operations", () => {
 ### Authentication Testing
 ```typescript
 // Better Auth testing patterns
-import { createAuth } from "@cf-monorepo/auth";
+import { createAuth } from "@repo/auth";
 
 describe("Authentication", () => {
 	it("should authenticate valid users", async () => {

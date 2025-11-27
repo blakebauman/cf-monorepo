@@ -1,5 +1,5 @@
 {
-	"name": "@cf-monorepo/auth",
+	"name": "@repo/auth",
 	"version": "0.0.0",
 	"private": true,
 	"main": "./src/index.ts",
@@ -12,8 +12,8 @@
 		"clean": "rm -rf .turbo node_modules"
 	},
 	"dependencies": {
-		"@cf-monorepo/db": "workspace:*",
-		"@cf-monorepo/types": "workspace:*",
+		"@repo/db": "workspace:*",
+		"@repo/types": "workspace:*",
 		"better-auth": "1.4.3"
 	},
 	"devDependencies": {

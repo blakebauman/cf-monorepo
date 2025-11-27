@@ -2,8 +2,8 @@
  * Authentication configuration for different environments
  */
 
-import { AUTH } from "@cf-monorepo/constants";
-import type { Env } from "@cf-monorepo/types";
+import { AUTH } from "@repo/constants";
+import type { Env } from "@repo/types";
 import { ENVIRONMENTS, getEnvironment } from "./index";
 
 export interface AuthConfig {

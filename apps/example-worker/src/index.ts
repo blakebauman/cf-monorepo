@@ -3,8 +3,9 @@
  * Production-ready with OpenAPI, request tracking, and middleware
  */
 
-import { createAuth } from "@cf-monorepo/auth";
-import { createDb, users } from "@cf-monorepo/db";
+import { OpenAPIHono, z } from "@hono/zod-openapi";
+import { createAuth } from "@repo/auth";
+import { createDb } from "@repo/db";
 import {
 	enhancedCors,
 	errorHandler,
@@ -13,13 +14,12 @@ import {
 	requestId,
 	securityHeaders,
 	structuredLogger,
-} from "@cf-monorepo/middleware";
-import { SuccessResponseSchema, standardErrorResponses } from "@cf-monorepo/openapi";
-import type { Env } from "@cf-monorepo/types";
-import { errorResponse, successResponse } from "@cf-monorepo/utils";
-import { OpenAPIHono } from "@hono/zod-openapi";
-import { z } from "@hono/zod-openapi";
+} from "@repo/middleware";
+import { SuccessResponseSchema, standardErrorResponses } from "@repo/openapi";
+import type { Env } from "@repo/types";
+import { errorResponse, successResponse } from "@repo/utils";
 import { apiReference } from "@scalar/hono-api-reference";
+import { createServices } from "./services";
 
 type Context = {
 	Bindings: Env;
@@ -241,7 +241,8 @@ app.openapi(
 	async (c) => {
 		try {
 			const db = createDb(c.env);
-			const allUsers = await db.select().from(users);
+			const services = createServices(db);
+			const allUsers = await services.user.findAll();
 			return c.json(successResponse(allUsers)) as never;
 		} catch (error) {
 			const requestId = c.get("requestId");

@@ -1,5 +1,5 @@
 {
-	"name": "@cf-monorepo/{{name}}",
+	"name": "@repo/{{name}}",
 	"version": "0.0.0",
 	"private": true,
 	"description": "{{description}}",
@@ -13,7 +13,7 @@
 		"clean": "rm -rf .turbo node_modules"
 	},
 	"dependencies": {
-		"@cf-monorepo/types": "workspace:*"
+		"@repo/types": "workspace:*"
 	}{{#if needsHono}},
 	"peerDependencies": {
 		"hono": "^4.10.7"

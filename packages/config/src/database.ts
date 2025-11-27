@@ -2,8 +2,8 @@
  * Database configuration for different environments
  */
 
-import { DATABASE } from "@cf-monorepo/constants";
-import type { Env } from "@cf-monorepo/types";
+import { DATABASE } from "@repo/constants";
+import type { Env } from "@repo/types";
 import { ENVIRONMENTS, getEnvironment } from "./index";
 
 export interface DatabaseConfig {

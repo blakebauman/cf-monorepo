@@ -125,7 +125,7 @@ This interactive tool will:
        "build": "tsc --noEmit"
      },
      "dependencies": {
-       "@cf-monorepo/types": "workspace:*",
+       "@repo/types": "workspace:*",
        "hono": "^4.10.7"
      }
    }
@@ -143,7 +143,7 @@ This interactive tool will:
 4. **Create `src/index.ts`**:
    ```typescript
    import { Hono } from "hono";
-   import type { Env } from "@cf-monorepo/types";
+   import type { Env } from "@repo/types";
 
    const app = new Hono<{ Bindings: Env }>();
 
@@ -185,11 +185,11 @@ pnpm test
 
 ### Writing Tests
 
-Use the testing utilities from `@cf-monorepo/testing`:
+Use the testing utilities from `@repo/testing`:
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { createMockEnv, createMockRequest } from "@cf-monorepo/testing";
+import { createMockEnv, createMockRequest } from "@repo/testing";
 
 describe("My Worker", () => {
   it("should handle requests", async () => {
@@ -234,8 +234,8 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 // Workspace packages
-import { createDb } from "@cf-monorepo/db";
-import type { Env } from "@cf-monorepo/types";
+import { createDb } from "@repo/db";
+import type { Env } from "@repo/types";
 
 // Local imports
 import { myFunction } from "./utils";

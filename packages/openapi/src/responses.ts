@@ -7,7 +7,7 @@ import { z } from "@hono/zod-openapi";
 
 /**
  * Base API Response Schema
- * Matches the ApiResponse type from @cf-monorepo/types
+ * Matches the ApiResponse type from @repo/types
  */
 export const BaseApiResponseSchema = z
 	.object({

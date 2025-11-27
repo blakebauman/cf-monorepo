@@ -76,7 +76,7 @@ This runs both Better Auth schema generation and Drizzle migration generation.
 After migrations are applied, you can:
 
 1. **Check tables in Neon console**: Verify that Better Auth tables are created
-2. **Use Drizzle Studio**: Run `pnpm --filter @cf-monorepo/db studio` to browse your database
+2. **Use Drizzle Studio**: Run `pnpm --filter @repo/db studio` to browse your database
 3. **Test the connection**: Start your worker and test auth endpoints
 
 ## Better Auth Tables

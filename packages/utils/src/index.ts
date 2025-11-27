@@ -2,7 +2,7 @@
  * Shared utilities across the monorepo
  */
 
-import type { ApiResponse, PaginatedResponse } from "@cf-monorepo/types";
+import type { ApiResponse, PaginatedResponse } from "@repo/types";
 
 /**
  * Creates a successful API response

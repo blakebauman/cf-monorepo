@@ -41,27 +41,27 @@ importers:
 
   apps/example-worker:
     dependencies:
-      '@cf-monorepo/auth':
-        specifier: workspace:*
-        version: link:../../packages/auth
-      '@cf-monorepo/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@cf-monorepo/middleware':
-        specifier: workspace:*
-        version: link:../../packages/middleware
-      '@cf-monorepo/openapi':
-        specifier: workspace:*
-        version: link:../../packages/openapi
-      '@cf-monorepo/types':
-        specifier: workspace:*
-        version: link:../../packages/types
-      '@cf-monorepo/utils':
-        specifier: workspace:*
-        version: link:../../packages/utils
       '@hono/zod-openapi':
         specifier: ^1.1.5
         version: 1.1.5(hono@4.10.7)(zod@4.1.13)
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@repo/middleware':
+        specifier: workspace:*
+        version: link:../../packages/middleware
+      '@repo/openapi':
+        specifier: workspace:*
+        version: link:../../packages/openapi
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      '@repo/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       '@scalar/hono-api-reference':
         specifier: ^0.9.25
         version: 0.9.25(hono@4.10.7)
@@ -90,10 +90,10 @@ importers:
 
   packages/auth:
     dependencies:
-      '@cf-monorepo/db':
+      '@repo/db':
         specifier: workspace:*
         version: link:../db
-      '@cf-monorepo/types':
+      '@repo/types':
         specifier: workspace:*
         version: link:../types
       better-auth:
@@ -109,10 +109,10 @@ importers:
 
   packages/config:
     dependencies:
-      '@cf-monorepo/constants':
+      '@repo/constants':
         specifier: workspace:*
         version: link:../constants
-      '@cf-monorepo/types':
+      '@repo/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
@@ -128,12 +128,12 @@ importers:
 
   packages/db:
     dependencies:
-      '@cf-monorepo/types':
-        specifier: workspace:*
-        version: link:../types
       '@neondatabase/serverless':
         specifier: ^1.0.2
         version: 1.0.2
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../types
       drizzle-orm:
         specifier: 0.44.7
         version: 0.44.7(@cloudflare/workers-types@4.20251126.0)(@neondatabase/serverless@1.0.2)(@prisma/client@5.22.0(prisma@5.22.0))(@types/pg@8.15.6)(better-sqlite3@12.4.6)(kysely@0.28.8)(pg@8.16.3)(prisma@5.22.0)
@@ -150,7 +150,7 @@ importers:
 
   packages/middleware:
     dependencies:
-      '@cf-monorepo/types':
+      '@repo/types':
         specifier: workspace:*
         version: link:../types
       hono:
@@ -172,12 +172,12 @@ importers:
 
   packages/openapi:
     dependencies:
-      '@cf-monorepo/types':
-        specifier: workspace:*
-        version: link:../types
       '@hono/zod-openapi':
         specifier: ^1.1.5
         version: 1.1.5(hono@4.10.7)(zod@4.1.13)
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../types
       zod:
         specifier: 4.1.13
         version: 4.1.13
@@ -191,10 +191,10 @@ importers:
 
   packages/testing:
     dependencies:
-      '@cf-monorepo/constants':
+      '@repo/constants':
         specifier: workspace:*
         version: link:../constants
-      '@cf-monorepo/types':
+      '@repo/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:
@@ -222,7 +222,7 @@ importers:
 
   packages/utils:
     dependencies:
-      '@cf-monorepo/types':
+      '@repo/types':
         specifier: workspace:*
         version: link:../types
     devDependencies:

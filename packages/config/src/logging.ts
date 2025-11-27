@@ -2,8 +2,8 @@
  * Logging configuration for different environments
  */
 
-import { LOG_LEVELS, type LogLevel } from "@cf-monorepo/constants";
-import type { Env } from "@cf-monorepo/types";
+import { LOG_LEVELS, type LogLevel } from "@repo/constants";
+import type { Env } from "@repo/types";
 import { ENVIRONMENTS, getEnvironment } from "./index";
 
 export interface LoggingConfig {

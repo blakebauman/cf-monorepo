@@ -118,7 +118,7 @@ app.post("/users", zValidator("json", userSchema), async (c) => {
 });
 
 // Secure response headers
-import { securityHeaders } from "@cf-monorepo/middleware";
+import { securityHeaders } from "@repo/middleware";
 
 app.use("*", securityHeaders());
 ```
@@ -126,7 +126,7 @@ app.use("*", securityHeaders());
 ### Authentication Security
 ```typescript
 // Secure session handling with Better Auth
-import { createAuth } from "@cf-monorepo/auth";
+import { createAuth } from "@repo/auth";
 
 const validateSession = async (c: Context) => {
 	const auth = createAuth(c.env);
@@ -192,7 +192,7 @@ app.post("/posts", zValidator("json", createPostSchema), async (c) => {
 ```typescript
 // ✅ Use Drizzle ORM (parameterized queries)
 import { eq } from "drizzle-orm";
-import { users } from "@cf-monorepo/db";
+import { users } from "@repo/db";
 
 const user = await db
 	.select()
@@ -245,10 +245,10 @@ const user = await db
 
 ## Security Headers
 
-Use the security middleware from `@cf-monorepo/middleware`:
+Use the security middleware from `@repo/middleware`:
 
 ```typescript
-import { securityHeaders } from "@cf-monorepo/middleware";
+import { securityHeaders } from "@repo/middleware";
 
 app.use("*", securityHeaders());
 ```

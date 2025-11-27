@@ -10,7 +10,9 @@
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
-			"id": "your-hyperdrive-id"
+			"id": "your-hyperdrive-id",
+			// For local development, use the same connection string as DATABASE_URL in .dev.vars
+			"localConnectionString": "postgresql://user:password@host:5432/database?sslmode=require"
 		}
 	]
 	// Rate Limiter configuration (optional)

@@ -6,10 +6,11 @@
  */
 
 {{#if useAuth}}
-import { createAuth } from "@cf-monorepo/auth";
+import { createAuth } from "@repo/auth";
 {{/if}}
 {{#if useDatabase}}
-import { createDb{{#if useOpenAPI}}, users{{/if}} } from "@cf-monorepo/db";
+import { createDb } from "@repo/db";
+import { createServices } from "./services";
 {{/if}}
 {{#if useMiddleware}}
 import {
@@ -20,13 +21,13 @@ import {
 	requestId,
 	securityHeaders,
 	structuredLogger,
-} from "@cf-monorepo/middleware";
+} from "@repo/middleware";
 {{/if}}
 {{#if useOpenAPI}}
-import { SuccessResponseSchema, standardErrorResponses } from "@cf-monorepo/openapi";
+import { SuccessResponseSchema, standardErrorResponses } from "@repo/openapi";
 {{/if}}
-import type { Env } from "@cf-monorepo/types";
-import { errorResponse, successResponse } from "@cf-monorepo/utils";
+import type { Env } from "@repo/types";
+import { errorResponse, successResponse } from "@repo/utils";
 {{#if useOpenAPI}}
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
@@ -292,7 +293,8 @@ app.openapi(
 	async (c) => {
 		try {
 			const db = createDb(c.env);
-			const allUsers = await db.select().from(users);
+			const services = createServices(db);
+			const allUsers = await services.user.findAll();
 			return c.json(successResponse(allUsers)) as never;
 		} catch (error) {
 			{{#if useMiddleware}}

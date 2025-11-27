@@ -2,8 +2,8 @@
  * Security configuration for different environments
  */
 
-import { RATE_LIMITS, SECURITY_HEADER_VALUES } from "@cf-monorepo/constants";
-import type { Env } from "@cf-monorepo/types";
+import { RATE_LIMITS, SECURITY_HEADER_VALUES } from "@repo/constants";
+import type { Env } from "@repo/types";
 import { ENVIRONMENTS, getEnvironment } from "./index";
 
 export interface SecurityConfig {

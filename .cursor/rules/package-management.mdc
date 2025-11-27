@@ -1,0 +1,248 @@
+---
+description: Package and dependency management patterns using pnpm workspaces and syncpack
+globs:
+alwaysApply: false
+---
+
+# Package and Dependency Management
+
+This guide covers how to manage packages and dependencies in the Workers monorepo using pnpm workspaces and syncpack.
+
+## Workspace Structure
+
+### Package Naming Convention
+
+All internal packages use the `@repo/` namespace:
+
+- `@repo/auth` - Better Auth configuration
+- `@repo/config` - Environment-aware configuration
+- `@repo/constants` - Shared constants
+- `@repo/db` - Drizzle ORM schema and utilities
+- `@repo/middleware` - Hono middleware (CORS, logging, security, etc.)
+- `@repo/openapi` - OpenAPI schemas and utilities
+- `@repo/testing` - Shared testing utilities
+- `@repo/types` - Shared TypeScript types
+- `@repo/utils` - Utility functions
+
+### Workspace Definition
+
+[pnpm-workspace.yaml](mdc:pnpm-workspace.yaml) defines package locations:
+
+```yaml
+packages:
+  - 'apps/*'
+  - 'packages/*'
+```
+
+## Adding Dependencies
+
+### To Root Workspace
+
+```bash
+# Development dependencies (tools, configs)
+pnpm add -D dependency-name
+
+# Production dependencies (shared across all packages)
+pnpm add dependency-name
+```
+
+### To Specific Package
+
+```bash
+# Add to specific workspace package
+pnpm --filter @repo/middleware add dependency-name
+
+# Add to worker app
+pnpm --filter example-worker add dependency-name
+
+# Add dev dependency
+pnpm --filter @repo/middleware add -D dependency-name
+```
+
+### Cross-Package Dependencies
+
+```bash
+# Reference another workspace package
+pnpm --filter example-worker add '@repo/middleware@workspace:*'
+
+# Uses workspace:* protocol in package.json
+# Example in package.json:
+# {
+#   "dependencies": {
+#     "@repo/middleware": "workspace:*"
+#   }
+# }
+```
+
+## Dependency Synchronization
+
+### Syncpack Configuration
+
+[syncpack.config.mjs](mdc:syncpack.config.mjs) ensures version consistency:
+
+- Pinned versions for security and reproducibility
+- Consistent versions across all packages for shared dependencies
+- Automatic dependency grouping for TypeScript, Cloudflare packages, Drizzle, Better Auth, etc.
+
+### Syncpack Commands
+
+```bash
+# Check for version mismatches
+just deps-check
+# or
+pnpm syncpack:check
+
+# Fix dependency versions
+just deps-fix
+# or
+pnpm syncpack
+```
+
+## Package Scripts Pattern
+
+### Standard Scripts
+
+Each package defines its own scripts in `package.json`:
+
+**Worker packages** (`apps/*`):
+```json
+{
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"build": "tsc --noEmit",
+		"type-check": "tsc --noEmit",
+		"lint": "biome lint ./src",
+		"check": "biome check ./src"
+	}
+}
+```
+
+**Shared packages** (`packages/*`):
+```json
+{
+	"scripts": {
+		"type-check": "tsc --noEmit",
+		"lint": "biome lint ./src",
+		"check": "biome check ./src"
+	}
+}
+```
+
+### Benefits
+
+- Consistent tooling across all packages
+- Biome for linting and formatting (replaces ESLint/Prettier)
+- TypeScript for type checking
+- Turborepo orchestrates builds with dependency awareness
+
+## Creating Shared Packages
+
+### Generate New Package
+
+```bash
+# Interactive package generator
+just new-package
+# or
+pnpm turbo gen package
+
+# Uses template from turbo/generators/templates/package/
+```
+
+### Package Structure
+
+```
+packages/new-package/
+├── src/
+│   └── index.ts
+├── package.json
+├── tsconfig.json
+└── vitest.config.ts
+```
+
+### Export Patterns
+
+```typescript
+// src/index.ts - main entry point
+export * from './module1'
+export * from './module2'
+export type { SomeType } from './types'
+```
+
+## TypeScript Configuration
+
+### Base Configuration
+
+All packages extend the base TypeScript configuration:
+
+**Shared packages** (`packages/*/tsconfig.json`):
+```json
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "dist"
+	},
+	"include": ["src/**/*"]
+}
+```
+
+**Workers** (`apps/*/tsconfig.json`):
+```json
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["@cloudflare/workers-types"]
+	},
+	"include": ["src/**/*", "worker-configuration.d.ts"]
+}
+```
+
+### Base Config
+
+[tsconfig.base.json](mdc:tsconfig.base.json) provides:
+- Strict TypeScript settings
+- Path mappings
+- Common compiler options
+- Workers types configuration
+
+All packages reference this base config using relative paths (`../../tsconfig.base.json`).
+
+## Build Dependencies
+
+### Turborepo Pipeline
+
+[turbo.json](mdc:turbo.json) defines build order:
+
+```json
+{
+	"build": {
+		"dependsOn": ["^build", "topo"]
+	}
+}
+```
+
+- `^build` - Build dependencies first
+- `topo` - Topological sorting of packages
+
+### Internal Dependencies
+
+```json
+{
+	"dependencies": {
+		"@repo/middleware": "workspace:*",
+		"@repo/types": "workspace:*",
+		"@repo/db": "workspace:*"
+	}
+}
+```
+
+## Best Practices
+
+1. **Use Workspace Protocol**: Always use `workspace:*` for internal `@repo/*` dependencies
+2. **Pin Versions**: Syncpack ensures consistent versions for shared dependencies (TypeScript, Cloudflare packages, Drizzle, etc.)
+3. **Consistent Tooling**: Use Biome for linting/formatting, TypeScript for type checking, Vitest for testing
+4. **Dependency Hygiene**: Regularly run `just deps-check` or `pnpm syncpack:check` to catch version mismatches
+5. **Package Scope**: Use `@repo/` namespace for all internal packages
+6. **TypeScript Config**: Extend `../../tsconfig.base.json` using relative paths (works across monorepo)
+7. **Biome Config**: Single `biome.json` at root applies to all packages
+8. **Testing**: Use Vitest with Workers pool for `apps/*` and Node.js environment for `packages/*`

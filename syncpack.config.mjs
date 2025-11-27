@@ -7,7 +7,7 @@ const config = {
 		{
 			label: "Use exact versions for workspace packages",
 			packages: ["**"],
-			dependencies: ["@cf-monorepo/**"],
+			dependencies: ["@repo/**"],
 			isIgnored: false,
 			range: "",
 		},

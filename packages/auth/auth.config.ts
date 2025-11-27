@@ -3,7 +3,7 @@
  * This file is used by the Better Auth CLI to generate database schema
  */
 
-import { createDb } from "@cf-monorepo/db";
+import { createDb } from "@repo/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 

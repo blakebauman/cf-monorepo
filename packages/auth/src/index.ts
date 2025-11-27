@@ -2,8 +2,8 @@
  * Better Auth configuration for Cloudflare Workers
  */
 
-import { createDb } from "@cf-monorepo/db";
-import type { Env } from "@cf-monorepo/types";
+import { createDb } from "@repo/db";
+import type { Env } from "@repo/types";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 

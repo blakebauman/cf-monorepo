@@ -86,10 +86,26 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
 				},
 				{
 					type: "add",
-					path: "apps/{{name}}/src/index.test.ts",
-					templateFile: "templates/worker/src/index.test.ts.hbs",
+					path: "apps/{{name}}/src/test/index.test.ts",
+					templateFile: "templates/worker/src/test/index.test.ts.hbs",
 				},
 			];
+
+			// Add service files when database is enabled
+			if (answers?.useDatabase) {
+				actions.push(
+					{
+						type: "add",
+						path: "apps/{{name}}/src/services/user-service.ts",
+						templateFile: "templates/worker/src/services/user-service.ts.hbs",
+					},
+					{
+						type: "add",
+						path: "apps/{{name}}/src/services/index.ts",
+						templateFile: "templates/worker/src/services/index.ts.hbs",
+					}
+				);
+			}
 
 			// Add custom action to generate types after files are created
 			const workerName = answers?.name;
@@ -176,6 +192,11 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
 				type: "add",
 				path: "packages/{{name}}/src/index.ts",
 				templateFile: "templates/package/src/index.ts.hbs",
+			},
+			{
+				type: "add",
+				path: "packages/{{name}}/src/test/index.test.ts",
+				templateFile: "templates/package/src/test/index.test.ts.hbs",
 			},
 		],
 	});

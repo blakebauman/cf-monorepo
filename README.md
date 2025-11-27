@@ -198,8 +198,8 @@ mkdir apps/my-new-worker
     "check": "biome check ./src"
   },
   "dependencies": {
-    "@cf-monorepo/types": "workspace:*",
-    "@cf-monorepo/utils": "workspace:*",
+    "@repo/types": "workspace:*",
+    "@repo/utils": "workspace:*",
     "hono": "^4.3.0"
   },
   "devDependencies": {
@@ -320,7 +320,7 @@ Use `workspace:*` for internal package dependencies:
 ```json
 {
   "dependencies": {
-    "@cf-monorepo/types": "workspace:*"
+    "@repo/types": "workspace:*"
   }
 }
 ```
