@@ -1,6 +1,6 @@
 ---
 description: Testing strategies, patterns, and tools for Cloudflare Workers with Vitest
-globs:
+globs: ["**/*.test.ts", "**/*.spec.ts", "vitest.config.*", "apps/**/src/**/*.ts"]
 alwaysApply: false
 ---
 
@@ -21,6 +21,53 @@ This guide covers testing strategies, patterns, and tools used across the Worker
 - **Root**: [vitest.config.ts](mdc:vitest.config.ts) - Workspace test configuration with separate projects for workers and packages
 - **Workers**: Use `@cloudflare/vitest-pool-workers` for Workers runtime testing
 - **Packages**: Use Node.js environment for package tests
+
+## Testing Strategy Framework
+
+### Unit Testing
+- Pure function testing with Vitest
+- Isolated component testing
+- Mock strategy for external dependencies
+- Edge case and boundary testing
+- Performance unit testing
+
+### Integration Testing
+- Database integration with test databases
+- API endpoint testing with real bindings
+- Authentication flow testing with Better Auth
+- Cross-package integration testing
+- External service integration testing
+- Binding integration testing (KV, R2, D1, Hyperdrive)
+
+### End-to-End Testing
+- Complete user journey testing
+- Multi-worker coordination testing
+- Geographic distribution testing
+- Load and stress testing
+- Disaster recovery testing
+
+### Contract Testing
+- API contract validation
+- Database schema contract testing
+- Inter-service communication contracts
+- External dependency contracts
+- Version compatibility testing
+
+## Cloudflare Workers Testing Focus
+
+### Edge Computing Testing Challenges
+- Multi-region deployment testing
+- Cold start behavior validation
+- Geographic latency considerations
+- Distributed state management testing
+- Edge cache behavior validation
+
+### Workers Runtime Testing
+- V8 isolate behavior testing
+- Memory and CPU constraint testing
+- Concurrent request handling
+- Resource cleanup validation
+- Error boundary testing
 
 ## Test Structure
 
@@ -113,6 +160,65 @@ describe('Worker with Environment', () => {
 })
 ```
 
+### Database Testing
+
+```typescript
+// Database testing with transactions
+import { createDb } from '@repo/db'
+
+describe('Database Operations', () => {
+	it('uses database connection', async () => {
+		// env is available from cloudflare:test
+		// DATABASE_URL or HYPERDRIVE binding is loaded from .dev.vars
+		const db = createDb(env)
+		const users = await db.select().from(usersTable)
+		expect(users).toBeDefined()
+	})
+
+	it('handles database transactions', async () => {
+		const db = createDb(env)
+		await db.transaction(async (tx) => {
+			// Setup test data
+			// Test operations
+			// Rollback automatically on error
+		})
+	})
+})
+```
+
+### Authentication Testing
+
+```typescript
+// Better Auth testing patterns
+import { createAuth } from '@repo/auth'
+
+describe('Authentication', () => {
+	it('should authenticate valid users', async () => {
+		const auth = createAuth(env)
+		const { session } = await auth.api.signInEmail({
+			email: 'test@example.com',
+			password: 'password',
+		})
+		expect(session).toBeDefined()
+	})
+})
+```
+
+### Test Worker Bindings
+
+```typescript
+it('uses rate limiter binding', async () => {
+	if (env.RATE_LIMITER) {
+		const result = await env.RATE_LIMITER.limit({
+			key: 'test-key',
+			limit: 10,
+			window: 60,
+		})
+		expect(result.success).toBeDefined()
+	}
+})
+```
+
 ## Unit Testing Shared Packages
 
 ### Testing Middleware
@@ -165,6 +271,30 @@ describe('Type Tests', () => {
 	it('exports expected types', () => {
 		expectTypeOf<SomeType>().toHaveProperty('id')
 		expectTypeOf<SomeType>().toHaveProperty('name')
+	})
+})
+```
+
+### Hono App Testing
+
+```typescript
+import { describe, it, expect } from 'vitest'
+import app from './index'
+
+describe('API', () => {
+	it('should return hello', async () => {
+		const res = await app.request('/')
+		expect(res.status).toBe(200)
+		expect(await res.text()).toBe('Hello!')
+	})
+
+	it('should create user', async () => {
+		const res = await app.request('/users', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ email: 'test@example.com', name: 'Test' }),
+		})
+		expect(res.status).toBe(201)
 	})
 })
 ```
@@ -255,7 +385,7 @@ export default defineConfig({
 
 - **Workers**: Tests use `@cloudflare/vitest-pool-workers` for Workers runtime
 - **Packages**: Tests use Node.js environment
-- **Location**: Tests placed alongside source files with `.test.ts` extension
+- **Location**: Tests placed in `src/test/` directory with `.test.ts` extension
 - **Coverage**: Configured with v8 provider, excludes node_modules, dist, .wrangler
 
 ## Testing Best Practices
@@ -333,25 +463,112 @@ it('handles errors gracefully', async () => {
 })
 ```
 
-### Test Worker Bindings
+## Test Data Management
 
-```typescript
-it('uses database connection', async () => {
-	// env is available from cloudflare:test
-	// DATABASE_URL or HYPERDRIVE binding is loaded from .dev.vars
-	const db = createDb(env)
-	const users = await db.select().from(usersTable)
-	expect(users).toBeDefined()
-})
+### Test Data Strategies
+- Factory pattern for test data creation
+- Database seeding for consistent tests
+- Synthetic data generation
+- Test data isolation strategies
+- Test data cleanup automation
 
-it('uses rate limiter binding', async () => {
-	if (env.RATE_LIMITER) {
-		const result = await env.RATE_LIMITER.limit({
-			key: 'test-key',
-			limit: 10,
-			window: 60,
-		})
-		expect(result.success).toBeDefined()
-	}
-})
-```
+### Mock and Stub Strategies
+- External API mocking
+- Database operation stubbing
+- Authentication service mocking
+- Time and date mocking
+- Network condition simulation
+
+## Performance Testing
+
+### Load Testing
+- Concurrent request testing
+- Geographic load distribution
+- Database connection pool testing
+- Memory usage under load
+- CPU utilization testing
+
+### Stress Testing
+- Resource exhaustion testing
+- Connection limit testing
+- Memory leak detection
+- Error rate under stress
+- Recovery testing
+
+### Benchmarking
+- Performance regression testing
+- Bundle size impact testing
+- Cold start performance
+- Database query performance
+- Network latency testing
+
+## Testing Environments
+
+### Local Development Testing
+- Wrangler dev environment testing
+- Local database testing with Docker
+- Mock external services
+- Environment variable testing
+- Hot reload testing validation
+
+### Staging Environment Testing
+- Production-like environment testing
+- Real binding integration testing
+- Performance baseline testing
+- Security testing in staging
+- Migration testing validation
+
+### Production Testing
+- Health check monitoring
+- Smoke testing after deployments
+- Performance monitoring
+- Error rate monitoring
+- Geographic performance testing
+
+## Specialized Testing Areas
+
+### Security Testing
+- Authentication bypass testing
+- Authorization testing
+- Input validation testing
+- SQL injection testing
+- XSS vulnerability testing
+
+### Compatibility Testing
+- Browser compatibility testing
+- Mobile device testing
+- Network condition testing
+- Regional compliance testing
+- Accessibility testing
+
+### Migration Testing
+- Database migration testing
+- Code deployment testing
+- Configuration change testing
+- Rollback procedure testing
+- Data integrity testing
+
+## Testing Tools Integration
+
+### External Tools
+- Playwright for E2E testing
+- Artillery for load testing
+- Lighthouse for performance testing
+- OWASP ZAP for security testing
+- Database testing tools integration
+
+## Test Monitoring and Reporting
+
+### Test Metrics
+- Test execution time tracking
+- Test success/failure rates
+- Coverage trend analysis
+- Performance test results
+- Flaky test identification
+
+### Reporting and Analytics
+- Test result dashboards
+- Performance trend reports
+- Test coverage reports
+- Quality metrics tracking
+- Testing ROI analysis

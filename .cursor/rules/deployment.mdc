@@ -1,11 +1,84 @@
 ---
-description: Deployment readiness and validation for Cloudflare Workers
-globs: ["apps/**/wrangler.jsonc", "apps/**/package.json"]
+description: Deployment readiness, validation, and CI/CD processes for Cloudflare Workers
+globs: ["apps/**/wrangler.jsonc", "apps/**/package.json", ".github/workflows/**/*.yml"]
+alwaysApply: false
 ---
 
 # Deployment Guidelines
 
-Comprehensive deployment validation for Cloudflare Workers, ensuring production readiness.
+Comprehensive deployment validation, CI/CD processes, and release management for Cloudflare Workers.
+
+## GitHub Actions Workflows
+
+### Branch Workflow - `.github/workflows/branches.yml`
+
+**Trigger**: Pushes to any branch except `main`
+
+**Pipeline**:
+
+1. Install dependencies with pnpm
+2. Run CI checks/tests (`pnpm check && pnpm type-check && pnpm test`)
+   - Dependency version checks (syncpack)
+   - Code formatting validation (Biome)
+   - TypeScript type checking
+   - Biome linting
+   - Unit tests across all packages (Vitest)
+   - Integration tests for workers
+
+### Release Workflow - `.github/workflows/release.yml`
+
+**Trigger**: Pushes to `main` branch
+
+**Jobs**:
+
+#### 1. Test and Deploy
+
+- Install dependencies
+- Run full CI checks
+- Run test suite
+- **Deploy all workers** (`pnpm turbo deploy`)
+- Requires secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+
+#### 2. Create Release PR
+
+- Uses [Changesets](https://github.com/changesets/changesets)
+- Creates PR with version bumps and changelog
+- Automatically merges when ready
+
+## Deployment Requirements
+
+### Cloudflare Secrets
+
+Configure in GitHub repository settings:
+
+```bash
+# Required for worker deployment
+CLOUDFLARE_API_TOKEN=your_api_token
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+```
+
+### Worker Configuration
+
+Each worker needs [wrangler.jsonc](mdc:apps/example-worker/wrangler.jsonc) with:
+
+```jsonc
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "worker-name",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-09-21",
+	"compatibility_flags": ["nodejs_compat"],
+	"routes": [],
+	"logpush": true,
+	"observability": {
+		"enabled": true,
+	},
+	"vars": {
+		"ENVIRONMENT": "development", // overridden during deployment
+		"SENTRY_RELEASE": "unknown", // overridden during deployment
+	},
+}
+```
 
 ## Pre-Deployment Validation Checklist
 
@@ -36,45 +109,6 @@ Comprehensive deployment validation for Cloudflare Workers, ensuring production 
 - [ ] Health check endpoints available
 - [ ] Performance monitoring setup
 - [ ] Alerting configured
-
-## Deployment Commands
-
-### Single Worker Deployment
-```bash
-# Validate and deploy specific worker
-just deploy-worker <worker-name>
-
-# Or manually
-cd apps/<worker-name>
-wrangler deploy
-```
-
-### Full Monorepo Deployment
-```bash
-# Deploy all workers
-just deploy
-
-# Or with Turborepo
-pnpm turbo deploy
-```
-
-## Environment-Specific Validation
-
-### Development
-- Local configuration validation
-- `.dev.vars` file completeness
-- Development binding setup
-
-### Staging
-- Staging environment parity
-- Integration test validation
-- Performance baseline checks
-
-### Production
-- Zero-downtime deployment strategy
-- Backup and rollback procedures
-- Security hardening validation
-- Performance optimization verification
 
 ## Pre-Deployment Checks
 
@@ -129,6 +163,7 @@ pnpm audit
 ## Worker Configuration Validation
 
 ### Wrangler Configuration
+
 ```jsonc
 {
 	"name": "my-worker",
@@ -220,6 +255,65 @@ wrangler deploy --dry-run
 - [ ] Alerting thresholds set
 - [ ] Dashboard access verified
 
+## Deployment Commands
+
+### Local Deployment
+
+#### Single Worker
+```bash
+# Deploy specific worker
+just deploy-worker <name>
+# or
+pnpm --filter <worker-name> deploy
+
+# Deploy to specific environment
+pnpm --filter <worker-name> deploy -- --env production
+```
+
+#### All Workers
+```bash
+# Deploy all workers
+just deploy
+# or
+pnpm turbo deploy
+```
+
+Note: Workers are deployed individually using their own `wrangler deploy` commands. Turborepo orchestrates the deployment process.
+
+### Environment Variables
+
+- **Local Development**: Use `.dev.vars` files
+- **Production**: Configure in Cloudflare dashboard or wrangler.jsonc
+
+## Turborepo Deployment Pipeline
+
+### Build Dependencies
+
+[turbo.json](mdc:turbo.json) defines deployment pipeline:
+
+```json
+{
+	"deploy": {
+		"cache": false,
+		"dependsOn": ["build", "topo"],
+		"env": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"]
+	}
+}
+```
+
+**Flow**:
+
+1. Build shared packages (`^build`)
+2. Build worker applications
+3. Generate deployment artifacts
+4. Deploy to Cloudflare
+
+### Caching Strategy
+
+- **Build artifacts** are cached by Turborepo
+- **Deployment** is never cached (`"cache": false`)
+- **Environment variables** invalidate relevant caches
+
 ## Deployment Process
 
 ### 1. Pre-Deployment
@@ -257,6 +351,24 @@ curl https://your-worker.workers.dev/health
 # Monitor logs
 wrangler tail --format pretty
 ```
+
+## Environment-Specific Validation
+
+### Development
+- Local configuration validation
+- `.dev.vars` file completeness
+- Development binding setup
+
+### Staging
+- Staging environment parity
+- Integration test validation
+- Performance baseline checks
+
+### Production
+- Zero-downtime deployment strategy
+- Backup and rollback procedures
+- Security hardening validation
+- Performance optimization verification
 
 ## Rollback Procedures
 
@@ -306,9 +418,86 @@ psql $DATABASE_URL < packages/db/drizzle/migrations/rollback.sql
 - Check memory usage
 - Analyze cold start times
 
-## Integration with CI/CD
+## Troubleshooting Deployment
 
-### GitHub Actions Example
+### Common Issues
+
+```bash
+# Clear Turborepo cache
+pnpm turbo clean
+# or
+just clean
+
+# Rebuild all packages
+pnpm turbo build --force
+# or
+just build
+```
+
+### Debug Deployment
+
+```bash
+# Dry run deployment
+pnpm --filter <worker-name> wrangler deploy --dry-run
+
+# Check worker logs
+pnpm --filter <worker-name> wrangler tail
+
+# Check worker status
+pnpm --filter <worker-name> wrangler whoami
+```
+
+## Changesets for Versioning
+
+### Creating Changesets
+
+```bash
+# Interactive changeset creation
+just cs
+# or
+pnpm changeset
+
+# Describe changes for each package
+```
+
+### Changeset Types
+
+- **patch** - Bug fixes, small updates
+- **minor** - New features, non-breaking changes
+- **major** - Breaking changes
+
+### Release Process
+
+1. Create changesets for changes
+2. Merge to `main` branch
+3. GitHub Actions creates release PR
+4. Review and merge release PR
+5. Packages are automatically published
+
+## Package Publishing
+
+### Workspace Dependencies
+
+Internal packages use `workspace:*` protocol for dependencies:
+
+- `@repo/auth` - Better Auth configuration
+- `@repo/db` - Drizzle ORM schema and utilities
+- `@repo/middleware` - Hono middleware
+- `@repo/types` - Shared TypeScript types
+- `@repo/utils` - Utility functions
+- `@repo/openapi` - OpenAPI schemas
+- `@repo/config` - Environment-aware configuration
+- `@repo/testing` - Testing utilities
+- `@repo/constants` - Shared constants
+
+### Publishing Scope
+
+Currently all packages are private and internal to the monorepo. If publishing is needed in the future, use Changesets for version management.
+
+## CI/CD Integration Example
+
+### GitHub Actions Workflow
+
 ```yaml
 name: Deploy
 
@@ -337,19 +526,15 @@ jobs:
 					apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 ```
 
-## Reporting
-
-After deployment, verify:
-- Deployment readiness score
-- Critical issues resolved
-- Performance optimization recommendations
-- Security enhancement suggestions
-- Post-deployment validation steps
-
-## Best Practices
+## Deployment Best Practices
 
 1. **Always test in staging first** - Never deploy directly to production
 2. **Use feature flags** - Gradual rollout for risky changes
 3. **Monitor closely** - Watch logs and metrics after deployment
 4. **Have rollback plan** - Know how to revert quickly
 5. **Document changes** - Keep deployment notes for troubleshooting
+6. **Environment Separation**: Use different worker names for dev/staging/prod
+7. **Secret Management**: Never commit secrets, use GitHub secrets or Cloudflare dashboard
+8. **Atomic Deployments**: Deploy all related workers together using `turbo deploy`
+9. **Testing**: Ensure integration tests pass before deployment
+10. **Monitoring**: Set up alerts and monitoring for deployed workers

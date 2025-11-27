@@ -12,10 +12,10 @@ This is a monorepo for Cloudflare Workers applications. See specialized rules fo
 - **drizzle.mdc** - Drizzle ORM schema and queries
 - **better-auth.mdc** - Authentication setup and patterns
 - **typescript.mdc** - TypeScript configuration and patterns
-- **testing.mdc** - Testing strategies and patterns
+- **testing-patterns.mdc** - Testing strategies, patterns, and tools
 - **security.mdc** - Security patterns and validation
 - **performance.mdc** - Performance optimization patterns
-- **deployment.mdc** - Deployment readiness and validation
+- **deployment.mdc** - Deployment readiness, validation, and CI/CD processes
 
 ## Tech Stack
 
