@@ -99,7 +99,7 @@ const UserSchema = z
 		id: z.union([z.number(), z.string()]).openapi({
 			example: 123,
 		}),
-		email: z.string().email().openapi({
+		email: z.email().openapi({
 			example: "user@example.com",
 		}),
 		name: z.string().nullable().openapi({
