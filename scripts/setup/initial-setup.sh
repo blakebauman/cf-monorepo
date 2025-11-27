@@ -201,7 +201,7 @@ REQUIRED_DIRS=(
     "packages"
     "turbo"
     ".github/workflows"
-    ".claude"
+    ".cursor/rules"
 )
 
 for dir in "${REQUIRED_DIRS[@]}"; do

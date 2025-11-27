@@ -330,42 +330,41 @@ Follows Conventional Commits format:
 - Use `waitUntil()` for background tasks
 - Workers are stateless between requests
 
-## Claude Code Workflow
+## Development Workflow
 
-This repository includes a comprehensive Claude Code development workflow in `.claude/`:
+This repository uses Cursor with comprehensive rules in `.cursor/rules/` for AI-assisted development:
 
-### Sub-Agents (5 Specialists)
-- **dev-assistant**: General development guidance and architecture decisions
-- **security-auditor**: Security vulnerability detection and compliance
-- **perf-optimizer**: Performance optimization and bundle analysis  
-- **test-strategist**: Testing strategy and quality assurance
-- **api-designer**: RESTful API design and OpenAPI specifications
+### Specialized Rules
+- **testing-patterns.mdc**: Testing strategies and patterns for Workers
+- **security.mdc**: Security validation and best practices
+- **performance.mdc**: Performance optimization for edge computing
+- **deployment.mdc**: Deployment readiness and validation
+- **development-workflow.mdc**: Common development workflows
 
-### Skills (4 Capabilities)
-- **db-migrations**: Intelligent database migration management
-- **worker-scaffolding**: Enhanced scaffolding beyond Turborepo generators
-- **deployment-readiness**: Comprehensive deployment validation
-- **docs-automation**: Automated documentation generation
+### Pre-Deployment Validation
 
-### Hooks (4 Automated Checks)
-- **quality-gate**: Code modification quality checks
-- **deployment-check**: Pre-deployment validation
-- **bash-safety**: Command execution safety
-- **activity-log**: Development activity logging
-
-### Usage
-The workflow automatically activates when using Claude Code. Enhanced integrations:
+A comprehensive pre-deployment check script is available:
 
 ```bash
-# AI-enhanced development commands
-just new-worker           # Intelligent scaffolding with pattern analysis
-just deploy               # Comprehensive deployment validation
-just db-generate          # Smart migration generation with safety checks
+# Run pre-deployment validation
+./scripts/deployment/pre-deploy-check.sh [worker-name] [environment]
+
+# Examples
+./scripts/deployment/pre-deploy-check.sh example-worker production
+./scripts/deployment/pre-deploy-check.sh all production
 ```
 
-Each component provides specialized expertise while maintaining seamless integration with existing tools.
-
-See `.claude/README.md` for detailed workflow documentation.
+This script validates:
+- Git repository status
+- Type checks and builds
+- Test suite
+- Code quality (linting, formatting)
+- Dependency synchronization
+- Security vulnerabilities
+- Worker configuration
+- Bundle size analysis
+- Database migration status
+- Production-specific checks
 
 ## Single Test Commands
 ```bash
