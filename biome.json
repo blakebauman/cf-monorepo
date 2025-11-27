@@ -73,6 +73,15 @@
 					}
 				}
 			}
+		},
+		{
+			"includes": ["**/worker-configuration.d.ts"],
+			"linter": {
+				"enabled": false
+			},
+			"formatter": {
+				"enabled": false
+			}
 		}
 	]
 }
