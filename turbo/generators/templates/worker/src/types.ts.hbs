@@ -1,0 +1,21 @@
+/**
+ * Type definitions for {{name}}
+ */
+
+import type { Env } from "@repo/types";
+{{#if useDatabase}}
+import type { Services } from "./services";
+{{/if}}
+
+/**
+ * Hono context type with bindings and variables
+ */
+export type Context = {
+	Bindings: Env;
+	Variables: {
+		requestId: string;
+		{{#if useDatabase}}
+		services: Services;
+		{{/if}}
+	};
+};

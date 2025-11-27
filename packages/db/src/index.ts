@@ -24,4 +24,5 @@ export function createDb(env: Env) {
 
 export type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 export type Database = ReturnType<typeof createDb>;
+export * from "./repository";
 export * from "./schema";

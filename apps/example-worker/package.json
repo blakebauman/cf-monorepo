@@ -16,6 +16,7 @@
 	"dependencies": {
 		"@repo/auth": "workspace:*",
 		"@repo/db": "workspace:*",
+		"@repo/errors": "workspace:*",
 		"@repo/middleware": "workspace:*",
 		"@repo/openapi": "workspace:*",
 		"@repo/types": "workspace:*",

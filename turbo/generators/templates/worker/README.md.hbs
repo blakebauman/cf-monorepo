@@ -1,0 +1,242 @@
+# {{name}}
+
+{{description}}
+
+## Features
+
+{{#if useOpenAPI}}
+- ✅ OpenAPI documentation with Scalar UI
+{{/if}}
+{{#if useDatabase}}
+- ✅ Drizzle ORM with Neon Postgres (via Hyperdrive)
+- ✅ BaseRepository pattern with CRUD operations
+- ✅ Transaction support with retry logic
+- ✅ Pagination utilities
+{{/if}}
+{{#if useAuth}}
+- ✅ Better Auth integration
+{{/if}}
+{{#if useMiddleware}}
+- ✅ Production-ready middleware (CORS, security headers, rate limiting)
+- ✅ Structured logging with request IDs
+{{/if}}
+- ✅ Type-safe with TypeScript
+- ✅ Layered architecture (Routes → Services → Repositories)
+- ✅ DTO transformers for secure data responses
+- ✅ Comprehensive error handling
+
+## Project Structure
+
+```
+src/
+{{#if useDatabase}}
+├── dto/              # Data Transfer Objects
+├── repositories/     # Data access layer
+{{/if}}
+├── routes/           # API route handlers
+{{#if useOpenAPI}}
+├── schemas/          # OpenAPI/Zod schemas
+{{/if}}
+├── services/         # Business logic layer
+├── test/             # Test files
+├── index.ts          # Worker entry point
+└── types.ts          # TypeScript types
+```
+
+## Getting Started
+
+### 1. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 2. Configure Environment Variables
+
+Copy `.dev.vars.example` to `.dev.vars` and fill in your values:
+
+```bash
+cp .dev.vars.example .dev.vars
+```
+
+{{#if useDatabase}}
+### 3. Setup Database
+
+```bash
+# Generate Better Auth schema (if using auth)
+pnpm --filter @repo/auth generate-schema
+
+# Generate database migration
+pnpm db:generate
+
+# Apply migrations
+pnpm db:migrate
+```
+
+{{/if}}
+### {{#if useDatabase}}4{{else}}3{{/if}}. Start Development Server
+
+```bash
+pnpm dev
+```
+
+{{#if useOpenAPI}}
+Visit:
+- API: http://localhost:8787
+- Docs: http://localhost:8787/docs
+- OpenAPI spec: http://localhost:8787/openapi.json
+{{else}}
+Visit: http://localhost:8787
+{{/if}}
+
+## Development
+
+### Available Scripts
+
+```bash
+# Development
+pnpm dev                 # Start dev server
+pnpm build              # Type check
+pnpm type-check         # Run TypeScript compiler
+
+# Code Quality
+pnpm lint               # Lint code
+pnpm lint:fix           # Fix linting issues
+pnpm format             # Format code
+pnpm check              # Run all checks
+
+# Testing
+pnpm test               # Run tests
+pnpm test:watch         # Run tests in watch mode
+
+# Deployment
+pnpm deploy             # Deploy to Cloudflare
+```
+
+{{#if useDatabase}}
+### Database Operations
+
+```bash
+# Generate migration from schema changes
+pnpm db:generate
+
+# Apply pending migrations
+pnpm db:migrate
+
+# Open Drizzle Studio (database GUI)
+pnpm db:studio
+```
+
+{{/if}}
+## Architecture
+
+### Layered Architecture
+
+This worker follows a clean layered architecture:
+
+1. **Routes Layer** (`src/routes/`)
+   - HTTP request handling
+   - Request validation (automatic with zod-openapi)
+   - Response formatting
+
+2. **Services Layer** (`src/services/`)
+   - Business logic
+   - Data validation
+   - Error handling with custom exceptions
+
+{{#if useDatabase}}
+3. **Repository Layer** (`src/repositories/`)
+   - Database operations
+   - Extends BaseRepository for common CRUD
+   - Custom queries specific to entities
+
+4. **DTO Layer** (`src/dto/`)
+   - Data transformation
+   - Security (exclude sensitive fields)
+   - Serialization (dates, nulls, etc.)
+{{/if}}
+
+### Error Handling
+
+The worker uses custom error classes from `@repo/errors`:
+
+- `ValidationError` - Invalid user input (400)
+- `AuthenticationError` - Missing/invalid auth (401)
+- `AuthorizationError` - Insufficient permissions (403)
+- `NotFoundError` - Resource not found (404)
+- `ConflictError` - Duplicate resource (409)
+- `RateLimitError` - Rate limit exceeded (429)
+- `DatabaseError` - Database operation failed (500)
+
+{{#if useOpenAPI}}
+### OpenAPI Documentation
+
+The API is fully documented with OpenAPI 3.1. Access the interactive docs at `/docs` when running locally.
+
+All routes are defined with:
+- Request/response schemas
+- Validation rules
+- Error responses
+- Examples
+
+{{/if}}
+## Deployment
+
+### Prerequisites
+
+1. Cloudflare account
+2. Wrangler CLI configured
+{{#if useDatabase}}
+3. Neon Postgres database
+4. Hyperdrive configuration (for production)
+{{/if}}
+
+### Deploy to Cloudflare
+
+```bash
+pnpm deploy
+```
+
+{{#if useDatabase}}
+### Environment Variables (Production)
+
+Set secrets using wrangler:
+
+```bash
+wrangler secret put DATABASE_URL
+{{#if useAuth}}
+wrangler secret put BETTER_AUTH_SECRET
+wrangler secret put BETTER_AUTH_URL
+{{/if}}
+```
+
+{{/if}}
+## Testing
+
+Tests are located in `src/test/` and use Vitest with the Cloudflare Workers pool.
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run tests with coverage
+pnpm test:coverage
+```
+
+## Learn More
+
+- [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
+- [Hono Framework](https://hono.dev/)
+{{#if useDatabase}}
+- [Drizzle ORM](https://orm.drizzle.team/)
+{{/if}}
+{{#if useAuth}}
+- [Better Auth](https://www.better-auth.com/)
+{{/if}}
+{{#if useOpenAPI}}
+- [OpenAPI Specification](https://spec.openapis.org/oas/latest.html)
+- [Zod](https://zod.dev/)
+{{/if}}

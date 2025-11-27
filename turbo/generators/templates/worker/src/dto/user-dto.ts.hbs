@@ -1,0 +1,40 @@
+/**
+ * User DTO transformers
+ */
+
+import { BaseDTO } from "@repo/openapi";
+import type { User } from "@repo/db";
+
+/**
+ * User DTO with transformation utilities
+ */
+export class UserDTO extends BaseDTO {
+	/**
+	 * Transform user to API response (excludes sensitive fields)
+	 */
+	static toResponse(user: User) {
+		return this.toDTO(user, {
+			exclude: ["password", "passwordHash"],
+			serializeDates: true,
+			removeNulls: false,
+		});
+	}
+
+	/**
+	 * Transform multiple users to API responses
+	 */
+	static toResponses(users: User[]) {
+		return this.toDTOs(users, {
+			exclude: ["password", "passwordHash"],
+			serializeDates: true,
+			removeNulls: false,
+		});
+	}
+
+	/**
+	 * Transform user to public API response (minimal data)
+	 */
+	static toPublic(user: User) {
+		return this.pick(user, ["id", "name", "email"]);
+	}
+}

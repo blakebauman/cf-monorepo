@@ -47,6 +47,15 @@ export interface BaseErrorOptions {
 }
 
 /**
+ * Type for V8 Error.captureStackTrace API
+ * Note: Uses Function type and constructor parameter name as required by V8 API
+ */
+type V8CaptureStackTrace = {
+	// biome-ignore lint/complexity/noBannedTypes lint/suspicious/noShadowRestrictedNames: V8 Error.captureStackTrace API signature requires these exact types
+	captureStackTrace?: (target: object, constructor: Function) => void;
+};
+
+/**
  * Base error class for all custom errors
  */
 export class BaseError extends Error {
@@ -70,8 +79,9 @@ export class BaseError extends Error {
 		this.timestamp = new Date();
 
 		// Maintain proper stack trace for where our error was thrown (only available on V8)
-		if (Error.captureStackTrace) {
-			Error.captureStackTrace(this, this.constructor);
+		const errorWithCapture = Error as unknown as V8CaptureStackTrace;
+		if (errorWithCapture.captureStackTrace) {
+			errorWithCapture.captureStackTrace(this, this.constructor);
 		}
 	}
 

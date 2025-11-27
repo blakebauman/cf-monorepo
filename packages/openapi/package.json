@@ -16,15 +16,19 @@
 		"type-check": "tsc --noEmit",
 		"lint": "biome lint ./src",
 		"lint:fix": "biome lint --write ./src",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"clean": "rm -rf .turbo node_modules"
 	},
 	"dependencies": {
+		"@repo/errors": "workspace:*",
 		"@repo/types": "workspace:*",
 		"@hono/zod-openapi": "^1.1.5",
 		"zod": "4.1.13"
 	},
 	"devDependencies": {
 		"@types/node": "^20.11.0",
-		"typescript": "^5.3.3"
+		"typescript": "^5.3.3",
+		"vitest": "^3.2.4"
 	}
 }

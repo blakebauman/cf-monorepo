@@ -1,0 +1,25 @@
+# Cloudflare Workers Environment Variables
+# Copy this file to .dev.vars (git-ignored) and fill in your values
+# .dev.vars is automatically loaded by wrangler dev
+
+{{#if useDatabase}}
+# Database Configuration
+# Get your DATABASE_URL from Neon, Supabase, or your PostgreSQL provider
+DATABASE_URL=postgresql://user:password@host:5432/database?sslmode=require
+
+{{/if}}
+{{#if useAuth}}
+# Better Auth Configuration
+# Generate a secure 32+ character secret: openssl rand -base64 32
+BETTER_AUTH_SECRET=your-32-character-secret-key-here-minimum-length-required
+BETTER_AUTH_URL=http://localhost:8787
+
+{{/if}}
+# Environment
+ENVIRONMENT=development
+
+{{#if useDatabase}}
+# Optional: Hyperdrive Configuration
+# If using Hyperdrive, the connection string will be provided via binding
+# Configure Hyperdrive in wrangler.jsonc
+{{/if}}

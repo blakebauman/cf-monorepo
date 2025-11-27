@@ -1,109 +1,117 @@
 /**
- * User service for database operations
- * All database queries for users must go through this service class
+ * User service for business logic
+ * Uses UserRepository for data access
  */
 
-import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
-import { eq, desc, count } from "drizzle-orm";
-import { users } from "@repo/db";
-import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import { ConflictError } from "@repo/errors";
+import type { User } from "@repo/db";
+import type { UserRepository } from "../repositories/user-repository";
 
-export type User = InferSelectModel<typeof users>;
-export type NewUser = InferInsertModel<typeof users>;
+export type NewUser = Omit<User, "id" | "createdAt" | "updatedAt">;
+export type UpdateUser = Partial<Omit<User, "id" | "createdAt" | "updatedAt">>;
 
+/**
+ * User service with business logic
+ */
 export class UserService {
-	constructor(private readonly db: NeonHttpDatabase) {}
+	constructor(private readonly repo: UserRepository) {}
 
 	/**
 	 * Get all users with pagination
 	 */
 	async findAll(options?: { limit?: number; offset?: number }): Promise<User[]> {
-		const limit = options?.limit ?? 100;
-		const offset = options?.offset ?? 0;
+		return this.repo.findAll(options);
+	}
 
-		return this.db
-			.select()
-			.from(users)
-			.orderBy(desc(users.createdAt))
-			.limit(limit)
-			.offset(offset);
+	/**
+	 * Get all users with pagination metadata
+	 */
+	async findAllPaginated(options?: { page?: number; limit?: number }) {
+		return this.repo.findAllPaginated(options);
 	}
 
 	/**
 	 * Get user by ID
 	 */
 	async findById(id: number): Promise<User | null> {
-		const [user] = await this.db
-			.select()
-			.from(users)
-			.where(eq(users.id, id))
-			.limit(1);
+		return this.repo.findById(id);
+	}
 
-		return user ?? null;
+	/**
+	 * Get user by ID or throw NotFoundError
+	 */
+	async findByIdOrThrow(id: number): Promise<User> {
+		return this.repo.findByIdOrThrow(id, "User");
 	}
 
 	/**
 	 * Get user by email
 	 */
 	async findByEmail(email: string): Promise<User | null> {
-		const [user] = await this.db
-			.select()
-			.from(users)
-			.where(eq(users.email, email))
-			.limit(1);
-
-		return user ?? null;
+		return this.repo.findByEmail(email);
 	}
 
 	/**
 	 * Create a new user
+	 * Validates that email doesn't already exist
 	 */
 	async create(data: NewUser): Promise<User> {
-		const [user] = await this.db
-			.insert(users)
-			.values(data)
-			.returning();
+		// Business logic: check if email already exists
+		const existing = await this.repo.findByEmail(data.email);
+		if (existing) {
+			throw new ConflictError("Email already exists", { email: data.email });
+		}
 
-		return user;
+		return this.repo.create(data);
 	}
 
 	/**
 	 * Update user by ID
 	 */
-	async update(
-		id: number,
-		data: Partial<Omit<User, "id" | "createdAt">>
-	): Promise<User | null> {
-		const [updated] = await this.db
-			.update(users)
-			.set({ ...data, updatedAt: new Date() })
-			.where(eq(users.id, id))
-			.returning();
+	async update(id: number, data: UpdateUser): Promise<User | null> {
+		return this.repo.update(id, data);
+	}
 
-		return updated ?? null;
+	/**
+	 * Update user by ID or throw NotFoundError
+	 */
+	async updateOrThrow(id: number, data: UpdateUser): Promise<User> {
+		return this.repo.updateOrThrow(id, data, "User");
 	}
 
 	/**
 	 * Delete user by ID
 	 */
 	async delete(id: number): Promise<boolean> {
-		const [deleted] = await this.db
-			.delete(users)
-			.where(eq(users.id, id))
-			.returning();
+		return this.repo.delete(id);
+	}
 
-		return deleted !== undefined;
+	/**
+	 * Delete user by ID or throw NotFoundError
+	 */
+	async deleteOrThrow(id: number): Promise<void> {
+		return this.repo.deleteOrThrow(id, "User");
 	}
 
 	/**
 	 * Count total users
 	 */
 	async count(): Promise<number> {
-		const [{ total }] = await this.db
-			.select({ total: count() })
-			.from(users);
+		return this.repo.count();
+	}
 
-		return total;
+	/**
+	 * Check if user exists by ID
+	 */
+	async exists(id: number): Promise<boolean> {
+		return this.repo.exists(id);
+	}
+
+	/**
+	 * Check if email exists
+	 */
+	async emailExists(email: string): Promise<boolean> {
+		return this.repo.emailExists(email);
 	}
 }
 

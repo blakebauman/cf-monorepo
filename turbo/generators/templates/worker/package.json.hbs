@@ -16,6 +16,7 @@
 		"clean": "rm -rf .turbo .wrangler node_modules"
 	},
 	"dependencies": {
+		"@repo/errors": "workspace:*",
 		"@repo/types": "workspace:*",
 		"@repo/utils": "workspace:*"{{#if useHono}},
 		"hono": "^4.10.7"{{/if}}{{#if useMiddleware}},
