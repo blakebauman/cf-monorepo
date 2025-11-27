@@ -91,6 +91,25 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
 				},
 			];
 
+			// Add custom action to generate types after files are created
+			const workerName = answers?.name;
+			actions.push({
+				type: "function",
+				async function() {
+					const { execSync } = await import("node:child_process");
+					const workerPath = `apps/${workerName}`;
+					try {
+						execSync("wrangler types", {
+							cwd: workerPath,
+							stdio: "inherit",
+						});
+						return `✅ Generated TypeScript types for ${workerName}`;
+					} catch (error) {
+						return `⚠️  Failed to generate types: ${error}`;
+					}
+				},
+			} as PlopTypes.ActionType);
+
 			return actions;
 		},
 	});
