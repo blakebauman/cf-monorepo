@@ -6,11 +6,7 @@ export interface Env {
 	// Cloudflare bindings
 	HYPERDRIVE?: Hyperdrive;
 	RATE_LIMITER?: {
-		limit: (options: {
-			key: string;
-			limit: number;
-			window: number;
-		}) => Promise<{
+		limit: (options: { key: string; limit: number; window: number }) => Promise<{
 			success: boolean;
 			limit: number;
 			remaining: number;
@@ -46,7 +42,7 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {
-	pagination?: {
+	pagination: {
 		page: number;
 		limit: number;
 		total: number;

@@ -193,7 +193,7 @@ import { apiReference } from "@scalar/hono-api-reference";
 const app = new OpenAPIHono<Context>();
 
 // Define OpenAPI spec
-app.doc("/openapi.json", { openapi: "3.0.0", info: { ... } });
+app.doc("/openapi.json", { openapi: "3.1.0", info: { ... } });
 
 // Mount Scalar UI
 app.get("/docs", apiReference({ theme: "purple" }));

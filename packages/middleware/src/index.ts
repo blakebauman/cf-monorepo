@@ -4,6 +4,7 @@
  */
 
 export { type CorsConfig, enhancedCors } from "./cors";
+export { type CsrfConfig, csrfForRoutes, csrfProtection } from "./csrf";
 export { errorHandler, notFoundHandler } from "./error-handler";
 export { structuredLogger } from "./logger";
 export { type RateLimitConfig, rateLimiter } from "./rate-limit";

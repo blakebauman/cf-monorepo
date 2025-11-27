@@ -18,7 +18,7 @@ import {
 import { SuccessResponseSchema, standardErrorResponses } from "@repo/openapi";
 import type { Env } from "@repo/types";
 import { errorResponse, successResponse } from "@repo/utils";
-import { apiReference } from "@scalar/hono-api-reference";
+import { Scalar } from "@scalar/hono-api-reference";
 import { createServices } from "./services";
 
 type Context = {
@@ -69,7 +69,7 @@ app.use(
 // ============================================================================
 
 app.doc("/openapi.json", {
-	openapi: "3.0.0",
+	openapi: "3.1.0",
 	info: {
 		version: "1.0.0",
 		title: "Example Worker API",
@@ -88,7 +88,7 @@ app.doc("/openapi.json", {
 });
 
 // Scalar UI for API documentation
-app.get("/docs", apiReference({ theme: "purple" }));
+app.get("/docs", Scalar({ theme: "purple" }));
 
 // ============================================================================
 // Schemas

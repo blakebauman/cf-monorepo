@@ -65,11 +65,7 @@ export function rateLimiter(config: RateLimitConfig): MiddlewareHandler {
 			// Get rate limit status
 			const result = await (
 				limiter as {
-					limit: (options: {
-						key: string;
-						limit: number;
-						window: number;
-					}) => Promise<{
+					limit: (options: { key: string; limit: number; window: number }) => Promise<{
 						success: boolean;
 						limit: number;
 						remaining: number;

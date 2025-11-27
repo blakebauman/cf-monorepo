@@ -31,7 +31,7 @@ import { errorResponse, successResponse } from "@repo/utils";
 {{#if useOpenAPI}}
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
-import { apiReference } from "@scalar/hono-api-reference";
+import { Scalar } from "@scalar/hono-api-reference";
 {{else}}
 import { Hono } from "hono";
 {{#unless useMiddleware}}
@@ -107,7 +107,7 @@ app.use(
 // ============================================================================
 
 app.doc("/openapi.json", {
-	openapi: "3.0.0",
+	openapi: "3.1.0",
 	info: {
 		version: "1.0.0",
 		title: "{{name}} API",
@@ -126,7 +126,7 @@ app.doc("/openapi.json", {
 });
 
 // Scalar UI for API documentation
-app.get("/docs", apiReference({ theme: "purple" }));
+app.get("/docs", Scalar({ theme: "purple" }));
 
 // ============================================================================
 // Schemas
