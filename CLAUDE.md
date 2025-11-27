@@ -12,7 +12,7 @@ This is a Cloudflare Workers monorepo with the following core technologies:
 - **ORM**: Drizzle ORM
 - **Authentication**: Better Auth
 - **Build System**: Turborepo + pnpm workspaces
-- **Linting**: Biome (35x faster than Prettier)
+- **Linting**: Biome 2.3.7 (fast Rust-based linter/formatter)
 - **Testing**: Vitest with Workers pool
 - **Task Runner**: Just
 
@@ -134,12 +134,44 @@ just auth-schema
 pnpm auth:generate-schema
 ```
 
+## Turborepo Task Dependencies
+
+Understanding task dependencies helps avoid errors:
+- `build`: Depends on `^build` (builds dependencies first)
+- `deploy`: Depends on `build`, `test`, `type-check`, `lint` (all must pass)
+- `test`: Depends on `^build` (shared packages must build first)
+- `type-check`: Depends on `^build` (types from dependencies needed)
+- `dev`: Persistent task with `^build` dependency
+- `migrate`: Depends on `generate` (schema must be generated first)
+
+**Important**: When running tasks, Turborepo automatically handles dependencies. Running `pnpm deploy` will run all prerequisite tasks in the correct order.
+
 ## Key Development Patterns
 
 ### Environment Variables
 - Workers use `.dev.vars` (not `.env`) for local development
 - Production uses Cloudflare secrets via `wrangler secret put`
 - Package scripts use `.env` files for Node.js operations
+
+### Wrangler Configuration
+Workers use `wrangler.jsonc` with these key patterns:
+```jsonc
+{
+  "name": "worker-name",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],  // Required for Node.js APIs
+  "vars": {
+    "ENVIRONMENT": "development"  // Non-secret environment variables
+  },
+  "hyperdrive": [{
+    "binding": "HYPERDRIVE",
+    "id": "your-hyperdrive-id",
+    "localConnectionString": "postgresql://..."  // For local dev
+  }]
+}
+```
+**Critical**: Always include `nodejs_compat` flag for Node.js APIs. Use `localConnectionString` for local Hyperdrive development.
 
 ### Shared Package Usage
 ```typescript
@@ -149,6 +181,32 @@ import { successResponse } from "@repo/utils";
 import { createDb, users } from "@repo/db";
 import { createAuth } from "@repo/auth";
 import { requestId, securityHeaders } from "@repo/middleware";
+```
+
+### OpenAPI Integration
+Use OpenAPIHono for automatic documentation:
+```typescript
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { SuccessResponseSchema, standardErrorResponses } from "@repo/openapi";
+import { apiReference } from "@scalar/hono-api-reference";
+
+const app = new OpenAPIHono<Context>();
+
+// Define OpenAPI spec
+app.doc("/openapi.json", { openapi: "3.0.0", info: { ... } });
+
+// Mount Scalar UI
+app.get("/docs", apiReference({ theme: "purple" }));
+
+// Define routes with OpenAPI schemas
+app.openapi({
+  method: "get",
+  path: "/api/users",
+  responses: {
+    200: { description: "Success", content: { "application/json": { schema: UserSchema } } },
+    ...standardErrorResponses
+  }
+}, handler);
 ```
 
 ### Worker Structure
@@ -168,6 +226,25 @@ export default {
     return new Response("OK");
   },
 };
+```
+
+### Middleware Ordering
+**CRITICAL**: Middleware order matters in Hono. Apply in this sequence:
+```typescript
+// 1. Request ID - must be first to track all requests
+app.use("*", requestId());
+
+// 2. Structured logging - logs with request ID
+app.use("*", structuredLogger());
+
+// 3. Security headers
+app.use("*", securityHeaders());
+
+// 4. CORS - environment-aware
+app.use("*", enhancedCors({ environment: "development" }));
+
+// 5. Rate limiting - apply to specific routes
+app.use("/api/*", rateLimiter({ limit: { requests: 100, window: 60 } }));
 ```
 
 ### Database Patterns
@@ -201,8 +278,13 @@ const user = await userService.findById(userId);
 
 ### Testing Strategy
 - **Workers tests**: Use `@cloudflare/vitest-pool-workers` for Workers runtime testing
+  - Located in `apps/**/test/**/*.test.ts`
+  - Runs with Workers pool using wrangler.jsonc configuration
+  - Set `VITEST_WRANGLER_CONFIG` env var to test specific workers
 - **Package tests**: Use Node.js environment for shared library testing
-- Test files: `*.test.ts` or `*.spec.ts` in `src/` directories
+  - Located in `packages/**/test/**/*.test.ts`
+  - Runs with standard Node.js environment
+- Test files: `*.test.ts` or `*.spec.ts` in `test/` directories
 - Coverage reports include text, JSON, and HTML formats
 - Use `testing` package utilities for mocks and fixtures
 
@@ -296,8 +378,17 @@ pnpm vitest run --testNamePattern="specific test name"
 # Run specific worker tests
 pnpm --filter <worker-name> test
 
-# Run specific package tests  
+# Run specific package tests
 pnpm --filter @repo/<package-name> test
+
+# Test specific worker with custom wrangler config
+VITEST_WRANGLER_CONFIG=./apps/my-worker/wrangler.jsonc pnpm test
+
+# Run only worker tests (skip package tests)
+pnpm vitest run --project workers
+
+# Run only package tests (skip worker tests)
+pnpm vitest run --project packages
 ```
 
 # important-instruction-reminders
