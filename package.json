@@ -3,6 +3,22 @@
 	"version": "0.0.0",
 	"private": true,
 	"description": "Cloudflare Workers monorepo template with Turborepo, pnpm workspaces, and shared packages",
+	"keywords": [
+		"cloudflare",
+		"workers",
+		"monorepo",
+		"turborepo",
+		"hono",
+		"drizzle",
+		"better-auth",
+		"typescript",
+		"edge-computing"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/your-org/cf-monorepo.git"
+	},
+	"license": "MIT",
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",

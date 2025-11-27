@@ -1,0 +1,24 @@
+# Default owners for everything in the repo
+* @
+
+# Documentation
+/docs/ @
+*.md @
+
+# CI/CD Configuration
+/.github/ @
+
+# Configuration files
+biome.json @
+turbo.json @
+tsconfig*.json @
+vitest.config.ts @
+syncpack.config.mjs @
+lefthook.yml @
+Justfile @
+
+# Package management
+package.json @
+pnpm-workspace.yaml @
+pnpm-lock.yaml @
+

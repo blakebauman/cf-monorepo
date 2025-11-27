@@ -1,153 +1,98 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-    inputs:
-      worker:
-        description: 'Specific worker to deploy (optional)'
-        required: false
-        type: string
-      skip_tests:
-        description: 'Skip tests (emergency deployment)'
-        required: false
-        type: boolean
-        default: false
+	push:
+		branches: [main]
+	workflow_dispatch:
+		inputs:
+			worker:
+				description: "Specific worker to deploy (optional)"
+				required: false
+				type: string
+			skip_tests:
+				description: "Skip tests (emergency deployment)"
+				required: false
+				type: boolean
+				default: false
 
 concurrency:
-  group: deploy-production-${{ github.ref }}
-  cancel-in-progress: false
+	group: deploy-production-${{ github.ref }}
+	cancel-in-progress: false
 
 jobs:
-  pre-deploy-checks:
-    name: Pre-deployment Validation
-    runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_tests }}
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+	pre-deploy-checks:
+		name: Pre-deployment Validation
+		runs-on: ubuntu-latest
+		if: ${{ !inputs.skip_tests }}
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+		steps:
+			- name: Checkout
+				uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
+			- name: Install pnpm
+				uses: pnpm/action-setup@v4
+				with:
+					version: 9
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+			- name: Setup Node.js
+				uses: actions/setup-node@v4
+				with:
+					node-version: "20"
+					cache: "pnpm"
 
-      - name: Run security scan
-        run: pnpm audit --audit-level moderate
+			- name: Install dependencies
+				run: pnpm install --frozen-lockfile
 
-      - name: Run linting
-        run: pnpm lint
+			- name: Run security scan
+				run: pnpm audit --audit-level moderate
 
-      - name: Run type checking
-        run: pnpm type-check
+			- name: Run linting
+				run: pnpm lint
 
-      - name: Run tests
-        run: pnpm test
+			- name: Run type checking
+				run: pnpm type-check
 
-      - name: Build
-        run: pnpm build
+			- name: Run tests
+				run: pnpm test
 
-  deploy:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    environment: production
-    needs: [pre-deploy-checks]
-    if: always() && (needs.pre-deploy-checks.result == 'success' || inputs.skip_tests)
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+			- name: Build
+				run: pnpm build
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
+	deploy:
+		name: Deploy to Production
+		runs-on: ubuntu-latest
+		environment: production
+		needs: [pre-deploy-checks]
+		if: always() && (needs.pre-deploy-checks.result == 'success' || inputs.skip_tests)
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
+		steps:
+			- name: Checkout
+				uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+			- name: Install pnpm
+				uses: pnpm/action-setup@v4
+				with:
+					version: 9
 
-      - name: Build
-        run: pnpm build
+			- name: Setup Node.js
+				uses: actions/setup-node@v4
+				with:
+					node-version: "20"
+					cache: "pnpm"
 
-      - name: Create deployment backup
-        run: |
-          echo "Creating deployment backup for rollback"
-          # Store current deployment info for potential rollback
-          echo "DEPLOYMENT_TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)" >> $GITHUB_ENV
+			- name: Install dependencies
+				run: pnpm install --frozen-lockfile
 
-      - name: Deploy workers to production
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -n "${{ inputs.worker }}" ]; then
-            echo "Deploying specific worker: ${{ inputs.worker }}"
-            cd apps/${{ inputs.worker }}
-            npx wrangler deploy --env production
-          else
-            echo "Deploying all workers to production"
-            for worker in apps/*/; do
-              if [ -f "$worker/wrangler.jsonc" ]; then
-                worker_name=$(basename "$worker")
-                echo "Deploying $worker_name to production"
-                cd "$worker"
-                npx wrangler deploy --env production
-                cd - > /dev/null
-                
-                # Wait between deployments to avoid rate limits
-                sleep 5
-              fi
-            done
-          fi
+			- name: Authenticate with Cloudflare
+				uses: cloudflare/wrangler-action@v3
+				with:
+					apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+					accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Run production smoke tests
-        run: |
-          echo "Running smoke tests against production"
-          # Add your production smoke tests here
-          # curl -f https://example.com/health || exit 1
-          
-          # Wait for deployment to propagate
-          sleep 30
-          
-          echo "✅ Production smoke tests completed"
-
-      - name: Create deployment tag
-        if: success()
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag -a "deploy-${{ env.DEPLOYMENT_TIMESTAMP }}" -m "Production deployment ${{ env.DEPLOYMENT_TIMESTAMP }}"
-          git push origin "deploy-${{ env.DEPLOYMENT_TIMESTAMP }}"
-
-      - name: Notify deployment success
-        if: success()
-        run: |
-          echo "🚀 Production deployment successful!"
-          echo "Deployment tag: deploy-${{ env.DEPLOYMENT_TIMESTAMP }}"
-
-      - name: Rollback on failure
-        if: failure()
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          echo "❌ Deployment failed, consider rollback procedures"
-          echo "Check Cloudflare dashboard for deployment status"
-          # Add automatic rollback logic here if needed
+			- name: Deploy workers
+				run: |
+					if [ -n "${{ inputs.worker }}" ]; then
+						pnpm --filter "${{ inputs.worker }}" deploy
+					else
+						pnpm turbo deploy
+					fi

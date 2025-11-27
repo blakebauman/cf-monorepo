@@ -1,56 +1,55 @@
 # Changesets
 
-This directory contains changesets - markdown files that describe the changes you've made to the packages in this monorepo.
+This directory contains [Changesets](https://github.com/changesets/changesets) for managing versioning and changelogs in this monorepo.
 
-## How to use
+## Creating a Changeset
 
-### Creating a changeset
-
-When you make a change that should be documented, run:
+When you make changes that should be versioned, create a changeset:
 
 ```bash
-just changeset
-# or
 pnpm changeset
-```
-
-This will prompt you to:
-1. Select which packages have changed
-2. Choose the type of change (major, minor, patch)
-3. Write a summary of the changes
-
-### Versioning
-
-When ready to release, run:
-
-```bash
-just version
 # or
-pnpm version
+just changeset
 ```
 
 This will:
-- Consume all changesets
-- Update package versions
-- Update CHANGELOG.md files
+1. Prompt you to select which packages changed
+2. Ask for the type of change (patch, minor, major)
+3. Request a description of the changes
 
-### Publishing (if applicable)
+## Changeset Types
 
-For public packages, run:
+- **patch**: Bug fixes, small updates (1.0.0 → 1.0.1)
+- **minor**: New features, non-breaking changes (1.0.0 → 1.1.0)
+- **major**: Breaking changes (1.0.0 → 2.0.0)
+
+## Release Process
+
+1. Create changesets as you make changes
+2. Commit changesets with your code changes
+3. When ready to release, merge to `main` branch
+4. GitHub Actions will automatically create a release PR
+5. Review and merge the release PR to publish versions
+
+## Manual Release
+
+If you need to manually create a release:
 
 ```bash
-just publish
+# Version packages based on changesets
+pnpm changeset version
 # or
-pnpm release
+just version
+
+# Publish packages (if configured)
+pnpm changeset publish
+# or
+just publish
 ```
 
-## Change types
+## Best Practices
 
-- **major**: Breaking changes
-- **minor**: New features (backwards compatible)
-- **patch**: Bug fixes (backwards compatible)
-
-## More information
-
-See [changesets documentation](https://github.com/changesets/changesets) for more details.
-
+- Create a changeset for every user-facing change
+- Be descriptive in your changeset messages
+- Group related changes in a single changeset when possible
+- Don't create changesets for internal-only changes (unless versioning is needed)
